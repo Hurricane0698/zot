@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+vault_root="$(cd -- "$script_dir/.." && pwd)"
+cd "$vault_root"
+
+tooling_env="$vault_root/kb/meta/tooling.env"
+collection="${ZOT_QMD_COLLECTION:-${QMD_COLLECTION:-}}"
+if [[ -z "$collection" && -f "$tooling_env" ]]; then
+  collection="$(sed -n 's/^[[:space:]]*ZOT_QMD_COLLECTION=//p' "$tooling_env" | head -n1)"
+fi
+collection="${collection:-zot_kb}"
+
+echo "== qmd update =="
+if command -v qmd >/dev/null 2>&1; then
+  qmd update -c "$collection" >/dev/null
+  echo "collection: $collection"
+else
+  echo "qmd not installed; skipping update."
+fi
+
+echo
+
+echo "== kb-search =="
+"$script_dir/kb-search" "Atlas" | sed -n '1,20p'
+
+echo
+
+echo "== kb-lint =="
+python3 "$script_dir/kb-lint"
+
+echo
+echo "Smoke test complete."

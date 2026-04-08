@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'USAGE'
+Usage: scripts/install-home-skills [--home /path/to/home] [--force]
+
+Installs the bundled home-level skill templates into ~/.codex/skills, ~/.agents/skills,
+and Claude Code slash-command templates into ~/.claude/commands.
+Default behavior is non-destructive: existing files are not overwritten.
+USAGE
+}
+
+target_home="${HOME:-}"
+force=false
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --home)
+      shift
+      [[ $# -gt 0 ]] || { echo "Missing value for --home" >&2; exit 1; }
+      target_home="$1"
+      ;;
+    --force)
+      force=true
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $1" >&2
+      exit 1
+      ;;
+  esac
+  shift
+done
+
+[[ -n "$target_home" ]] || { echo "HOME is not set; pass --home /path/to/home" >&2; exit 1; }
+
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+repo_root="$(cd -- "$script_dir/.." && pwd)"
+template_home="$repo_root/templates/home"
+
+[[ -d "$template_home" ]] || { echo "Missing home skill template dir: $template_home" >&2; exit 1; }
+mkdir -p "$target_home"
+target_home="$(cd -- "$target_home" && pwd -P)"
+
+copy_missing() {
+  local src="$1"
+  local dst="$2"
+  (
+    cd "$src"
+    while IFS= read -r -d '' dir; do
+      mkdir -p "$dst/$dir"
+    done < <(find . -type d -print0)
+    while IFS= read -r -d '' file; do
+      if [[ ! -e "$dst/$file" ]]; then
+        cp -p "$file" "$dst/$file"
+      fi
+    done < <(find . -type f -print0)
+  )
+}
+
+if $force; then
+  cp -R "$template_home"/. "$target_home"/
+else
+  copy_missing "$template_home" "$target_home"
+fi
+
+echo "[OK] Bundled home-level skill templates are ready under: $target_home"
+echo "[OK] Codex skills: $target_home/.codex/skills"
+echo "[OK] Agents skills: $target_home/.agents/skills"
+echo "[OK] Claude commands: $target_home/.claude/commands"

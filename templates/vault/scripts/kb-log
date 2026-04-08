@@ -1,0 +1,37 @@
+#!/usr/bin/env python3
+import argparse
+from datetime import datetime
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parent.parent
+LOG = REPO / "kb" / "meta" / "log.md"
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Append a standardized entry to kb/meta/log.md")
+    parser.add_argument("kind")
+    parser.add_argument("title")
+    parser.add_argument("--raw", default="n/a")
+    parser.add_argument("--changed", default="n/a")
+    parser.add_argument("--output", default="n/a")
+    parser.add_argument("--note", default="")
+    args = parser.parse_args()
+
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+    lines = [
+        "",
+        f"## [{timestamp}] {args.kind} | {args.title}",
+        f"- raw: {args.raw}",
+        f"- changed: {args.changed}",
+        f"- output: {args.output}",
+        f"- note: {args.note or ''}",
+    ]
+    LOG.parent.mkdir(parents=True, exist_ok=True)
+    with LOG.open("a", encoding="utf-8") as fh:
+        fh.write("\n".join(lines) + "\n")
+    print(LOG)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

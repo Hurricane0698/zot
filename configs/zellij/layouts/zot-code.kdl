@@ -1,0 +1,16 @@
+layout {
+    pane split_direction="vertical" {
+        pane focus=true
+        pane size="30%" split_direction="horizontal" {
+            pane command="bash" {
+                args "-lc" "clear && \"${ZOT_WORKFLOW_HOME:-$HOME/zot}/scripts/start-session\" || true"
+            }
+            pane command="bash" {
+                args "-lc" "printf 'Tests / build pane for %s\n' \"$(basename \"$PWD\")\"; exec zsh -l"
+            }
+        }
+    }
+    pane size=1 borderless=true {
+        plugin location="zellij:compact-bar"
+    }
+}

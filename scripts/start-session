@@ -1,0 +1,245 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'USAGE'
+Usage: scripts/start-session [--vault /path/to/vault] [--json]
+
+Prints a session-start context bundle using:
+- AGENTS.md
+- README.md
+- matching Obsidian project note when available
+- recent git activity
+- detected home-level Obsidian skills
+
+Flags:
+- --json    Emit a machine-readable JSON bundle instead of the text report
+USAGE
+}
+
+vault_path="${ZOT_VAULT:-}"
+output_format="text"
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --vault)
+      shift
+      [[ $# -gt 0 ]] || { echo "Missing value for --vault" >&2; exit 1; }
+      vault_path="$1"
+      ;;
+    --json)
+      output_format="json"
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Unknown argument: $1" >&2
+      exit 1
+      ;;
+  esac
+  shift
+done
+
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+workflow_root="$(cd -- "$script_dir/.." && pwd)"
+repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+cd "$repo_root"
+project_name="$(basename "$repo_root")"
+project_slug="$(printf '%s' "$project_name" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//')"
+project_note_rel="kb/wiki/projects/${project_slug}.md"
+project_note_abs=""
+[[ -n "$vault_path" ]] && project_note_abs="$vault_path/$project_note_rel"
+
+local_context_candidates=(
+  "AGENTS|AGENTS.md|180"
+  "README|README.md|120"
+  "README_CN|README_CN.md|120"
+)
+
+skill_dirs=(
+  "$HOME/.codex/skills/zot-vault-search"
+  "$HOME/.codex/skills/zot-vault-ingest"
+  "$HOME/.codex/skills/zot-vault-review"
+  "$HOME/.agents/skills/qmd"
+)
+
+show_file() {
+  local title="$1"
+  local path="$2"
+  local max_lines="${3:-120}"
+  if [[ -f "$path" ]]; then
+    printf '\n===== %s: %s =====\n' "$title" "$path"
+    sed -n "1,${max_lines}p" "$path"
+  fi
+}
+
+if [[ "$output_format" == "json" ]]; then
+  LOCAL_CONTEXT_CANDIDATES="$(printf '%s\n' "${local_context_candidates[@]}")" \
+  HOME_SKILL_DIRS="$(printf '%s\n' "${skill_dirs[@]}")" \
+  python3 - "$repo_root" "$workflow_root" "$project_name" "$project_slug" "$vault_path" "$project_note_rel" "$project_note_abs" <<'PY'
+from __future__ import annotations
+
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+repo_root = Path(sys.argv[1])
+workflow_root = Path(sys.argv[2])
+project_name = sys.argv[3]
+project_slug = sys.argv[4]
+vault_path = sys.argv[5] or None
+project_note_rel = sys.argv[6]
+project_note_abs = Path(sys.argv[7]) if sys.argv[7] else None
+
+candidate_specs: list[tuple[str, str, int]] = []
+for line in os.environ.get("LOCAL_CONTEXT_CANDIDATES", "").splitlines():
+    if not line.strip():
+        continue
+    label, path, max_lines = line.split("|", 2)
+    candidate_specs.append((label, path, int(max_lines)))
+
+skill_dirs = [line for line in os.environ.get("HOME_SKILL_DIRS", "").splitlines() if line.strip()]
+
+def run(cmd: list[str]) -> tuple[int, str]:
+    result = subprocess.run(
+        cmd,
+        cwd=repo_root,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+        check=False,
+    )
+    return result.returncode, result.stdout
+
+def read_preview(path: Path, max_lines: int) -> str | None:
+    if not path.is_file():
+        return None
+    with path.open("r", encoding="utf-8", errors="replace") as handle:
+        lines = handle.readlines()[:max_lines]
+    return "".join(lines)
+
+git_code, _ = run(["git", "rev-parse", "--is-inside-work-tree"])
+inside_git = git_code == 0
+branch = None
+changed_paths_count = 0
+git_status = []
+recent_commits = []
+
+if inside_git:
+    _, branch_out = run(["git", "branch", "--show-current"])
+    branch = branch_out.strip() or "detached"
+    _, status_out = run(["git", "status", "--short"])
+    all_status_lines = [line for line in status_out.splitlines() if line.strip()]
+    changed_paths_count = len(all_status_lines)
+    git_status = all_status_lines[:40]
+    _, log_out = run(["git", "log", "--oneline", "-5"])
+    recent_commits = [line for line in log_out.splitlines() if line.strip()]
+
+local_context_files = []
+for label, rel_path, max_lines in candidate_specs:
+    file_path = repo_root / rel_path
+    local_context_files.append(
+        {
+            "label": label,
+            "path": rel_path,
+            "exists": file_path.is_file(),
+            "max_lines": max_lines,
+            "content": read_preview(file_path, max_lines),
+        }
+    )
+
+detected_skills = [{"path": path} for path in skill_dirs if Path(path).exists()]
+
+project_note = {
+    "relative_path": project_note_rel,
+    "path": str(project_note_abs) if project_note_abs else None,
+    "exists": bool(project_note_abs and project_note_abs.is_file()),
+    "max_lines": 180,
+    "content": read_preview(project_note_abs, 180) if project_note_abs else None,
+    "create_command": None,
+}
+if not project_note["exists"]:
+    target_vault = vault_path or "/path/to/vault"
+    project_note["create_command"] = f"{workflow_root}/scripts/init-project . --vault {target_vault}"
+
+payload = {
+    "repo_root": str(repo_root),
+    "workflow_root": str(workflow_root),
+    "project_name": project_name,
+    "project_slug": project_slug,
+    "vault_path": vault_path,
+    "inside_git_repo": inside_git,
+    "branch": branch,
+    "changed_paths_count": changed_paths_count,
+    "local_context_files": local_context_files,
+    "detected_home_skills": detected_skills,
+    "project_note": project_note,
+    "git_status": git_status,
+    "recent_commits": recent_commits,
+    "next": [
+        "Read AGENTS.md constraints first.",
+        "Pull durable context from the matching Obsidian project note.",
+        "If relevant, use home-level Obsidian skills to search, ingest, or review before coding.",
+    ],
+}
+
+json.dump(payload, sys.stdout, ensure_ascii=False, indent=2)
+sys.stdout.write("\n")
+PY
+  exit 0
+fi
+
+printf '===== SESSION START =====\n'
+printf 'Repo: %s\n' "$repo_root"
+printf 'Project: %s\n' "$project_name"
+if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  printf 'Branch: %s\n' "$(git branch --show-current 2>/dev/null || echo detached)"
+  printf 'Changed paths: %s\n' "$(git status --short | wc -l | tr -d ' ')"
+fi
+if [[ -n "$vault_path" ]]; then
+  printf 'Vault: %s\n' "$vault_path"
+fi
+
+printf '\n===== Local context files =====\n'
+for candidate in "${local_context_candidates[@]}"; do
+  IFS='|' read -r _ candidate_path _ <<<"$candidate"
+  [[ -f "$candidate_path" ]] && printf -- '- %s\n' "$candidate_path"
+done
+
+printf '\n===== Detected home-level Obsidian skills =====\n'
+found_skill=false
+for skill_dir in "${skill_dirs[@]}"; do
+  if [[ -e "$skill_dir" ]]; then
+    printf -- '- %s\n' "$skill_dir"
+    found_skill=true
+  fi
+done
+if [[ "$found_skill" == false ]]; then
+  printf 'No known zot-compatible home-level Obsidian skills detected under $HOME.\n'
+fi
+
+show_file "AGENTS" "AGENTS.md" 180
+show_file "README" "README.md" 120
+
+if [[ -n "$project_note_abs" && -f "$project_note_abs" ]]; then
+  show_file "Vault project note" "$project_note_abs" 180
+else
+  printf '\n===== Vault project note =====\n'
+  printf 'No matching note found at: %s\n' "${project_note_abs:-$project_note_rel}"
+  printf 'Create it with: %s/scripts/init-project . --vault %s\n' "$workflow_root" "${vault_path:-/path/to/vault}"
+fi
+
+if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  printf '\n===== Recent git activity =====\n'
+  git status --short | sed -n '1,40p'
+  printf '\n'
+  git log --oneline -5
+fi
+
+printf '\n===== Next =====\n'
+printf '1. Read AGENTS.md constraints first.\n'
+printf '2. Pull durable context from the matching Obsidian project note.\n'
+printf '3. If relevant, use home-level Obsidian skills to search, ingest, or review before coding.\n'

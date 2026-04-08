@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+vault_root="$(cd -- "$script_dir/.." && pwd)"
+cd "$vault_root"
+
+if [[ $# -lt 1 ]]; then
+  echo "Usage: scripts/kb-search <query> [extra qmd/rg args]" >&2
+  exit 1
+fi
+
+query="$1"
+shift || true
+tooling_env="$vault_root/kb/meta/tooling.env"
+collection="${ZOT_QMD_COLLECTION:-${QMD_COLLECTION:-}}"
+
+if [[ -z "$collection" && -f "$tooling_env" ]]; then
+  collection="$(sed -n 's/^[[:space:]]*ZOT_QMD_COLLECTION=//p' "$tooling_env" | head -n1)"
+fi
+
+collection="${collection:-zot_kb}"
+
+if command -v qmd >/dev/null 2>&1; then
+  if qmd search "$query" -c "$collection" "$@"; then
+    exit 0
+  fi
+  echo "[kb-search] qmd search failed; falling back to ripgrep." >&2
+fi
+
+exec rg --line-number --smart-case --glob '*.md' "$query" kb "$@"

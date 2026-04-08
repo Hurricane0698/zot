@@ -1,0 +1,90 @@
+#!/usr/bin/env python3
+import argparse
+import re
+import sys
+from datetime import datetime
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parent.parent
+RAW_ROOT = REPO / "kb" / "raw"
+
+
+def slugify(text: str) -> str:
+    text = text.strip().lower()
+    text = re.sub(r"[^a-z0-9\u4e00-\u9fff]+", "-", text)
+    text = re.sub(r"-{2,}", "-", text).strip("-")
+    return text or "note"
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Create a raw capture note inside kb/raw.")
+    parser.add_argument(
+        "--kind",
+        default="inbox",
+        choices=["inbox", "web", "podcast", "course", "conversation", "life"],
+    )
+    parser.add_argument("--domain", default="general")
+    parser.add_argument("--title", required=True)
+    parser.add_argument("--source-url", default="")
+    parser.add_argument("--captured-from", default="manual")
+    parser.add_argument("--date", default=datetime.now().strftime("%Y-%m-%d"))
+    parser.add_argument("--path", default="")
+    parser.add_argument(
+        "--stdin",
+        action="store_true",
+        help="Read raw body from stdin even if stdin is a TTY.",
+    )
+    args = parser.parse_args()
+
+    body = ""
+    if args.stdin or not sys.stdin.isatty():
+        body = sys.stdin.read().rstrip()
+
+    target_dir = RAW_ROOT / args.kind
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    if args.path:
+        path = REPO / args.path
+        path.parent.mkdir(parents=True, exist_ok=True)
+    else:
+        base = f"{args.date}-{slugify(args.title)}"
+        path = target_dir / f"{base}.md"
+        i = 2
+        while path.exists():
+            path = target_dir / f"{base}-{i}.md"
+            i += 1
+
+    frontmatter = [
+        "---",
+        "type: raw-source",
+        f"title: {args.title!r}",
+        f"source_kind: {args.kind}",
+        f"domain: [{args.domain}]" if args.domain else "domain: []",
+        f"created: {args.date}",
+        f"captured_from: {args.captured_from!r}",
+    ]
+    if args.source_url:
+        frontmatter.append(f"source_url: {args.source_url!r}")
+    frontmatter.extend(
+        [
+            "---",
+            "",
+            f"# {args.title}",
+            "",
+            "## Context",
+            "",
+            "## Raw Content",
+            "",
+        ]
+    )
+    if body:
+        frontmatter.append(body)
+    frontmatter.extend(["", "## Why it may matter", ""])
+
+    path.write_text("\n".join(frontmatter).rstrip() + "\n", encoding="utf-8")
+    print(path)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

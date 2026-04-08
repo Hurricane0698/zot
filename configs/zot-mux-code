@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+target="${1:-auto}"
+workspace="${2:-$PWD}"
+
+if [[ ! -d "$workspace" ]]; then
+  echo "zot-mux-code: workspace does not exist: $workspace" >&2
+  exit 1
+fi
+
+workspace="$(cd "$workspace" && pwd -P)"
+project_name="$(basename "$workspace")"
+project_slug="$(printf '%s' "$project_name" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//')"
+workspace_hash="$(printf '%s' "$workspace" | cksum | awk '{print $1}' | cut -c1-6)"
+session_name="zot-${project_slug:-workspace}-${workspace_hash}"
+workflow_home="${ZOT_WORKFLOW_HOME:-$HOME/zot}"
+context_cmd="clear && \"$workflow_home/scripts/start-session\""
+
+resolve_zellij_layout() {
+  if [[ -n "${ZOT_ZELLIJ_CODE_LAYOUT:-}" ]]; then
+    printf '%s\n' "$ZOT_ZELLIJ_CODE_LAYOUT"
+    return
+  fi
+
+  local linux_layout="$HOME/.config/zellij/layouts/zot-code.kdl"
+  local macos_layout="$HOME/Library/Application Support/org.Zellij-Contributors.Zellij/layouts/zot-code.kdl"
+
+  case "$(uname -s)" in
+    Darwin)
+      [[ -f "$macos_layout" ]] && { printf '%s\n' "$macos_layout"; return; }
+      [[ -f "$linux_layout" ]] && { printf '%s\n' "$linux_layout"; return; }
+      printf '%s\n' "$macos_layout"
+      ;;
+    *)
+      [[ -f "$linux_layout" ]] && { printf '%s\n' "$linux_layout"; return; }
+      [[ -f "$macos_layout" ]] && { printf '%s\n' "$macos_layout"; return; }
+      printf '%s\n' "$linux_layout"
+      ;;
+  esac
+}
+
+zellij_layout="$(resolve_zellij_layout)"
+
+detect_target() {
+  case "$target" in
+    auto|"")
+      if command -v zellij >/dev/null 2>&1; then
+        echo "zellij"
+      elif command -v tmux >/dev/null 2>&1; then
+        echo "tmux"
+      else
+        echo ""
+      fi
+      ;;
+    zellij|tmux)
+      echo "$target"
+      ;;
+    *)
+      echo ""
+      ;;
+  esac
+}
+
+target="$(detect_target)"
+if [[ -z "$target" ]]; then
+  echo "zot-mux-code: no supported multiplexer found. Install zellij or tmux, or rerun ./setup.sh." >&2
+  exit 1
+fi
+
+if [[ "$target" == "tmux" ]]; then
+  if [[ -n "${TMUX:-}" ]]; then
+    tmux new-window -c "$workspace" -n code
+    main_pane="$(tmux display-message -p '#{pane_id}')"
+    right_top="$(tmux split-window -h -t "$main_pane" -c "$workspace" -p 33 -P -F '#{pane_id}')"
+    right_bottom="$(tmux split-window -v -t "$right_top" -c "$workspace" -p 50 -P -F '#{pane_id}')"
+    tmux send-keys -t "$right_top" "$context_cmd" C-m
+    tmux send-keys -t "$right_bottom" "printf 'Tests / build pane for %s\n' '$project_name'" C-m
+    tmux select-pane -t "$main_pane"
+    exit 0
+  fi
+
+  if tmux has-session -t "$session_name" 2>/dev/null; then
+    exec tmux attach -t "$session_name"
+  fi
+
+  tmux new-session -d -s "$session_name" -c "$workspace" -n code
+  main_pane="$(tmux list-panes -t "$session_name":code -F '#{pane_id}' | head -n1)"
+  right_top="$(tmux split-window -h -t "$main_pane" -c "$workspace" -p 33 -P -F '#{pane_id}')"
+  right_bottom="$(tmux split-window -v -t "$right_top" -c "$workspace" -p 50 -P -F '#{pane_id}')"
+  tmux send-keys -t "$right_top" "$context_cmd" C-m
+  tmux send-keys -t "$right_bottom" "printf 'Tests / build pane for %s\n' '$project_name'" C-m
+  tmux select-pane -t "$main_pane"
+  exec tmux attach -t "$session_name"
+fi
+
+if [[ "$target" == "zellij" ]]; then
+  if [[ ! -f "$zellij_layout" ]]; then
+    echo "zot-mux-code: missing zellij layout: $zellij_layout" >&2
+    exit 1
+  fi
+
+  if [[ -n "${ZELLIJ:-}" ]]; then
+    cd "$workspace"
+    exec zellij action new-tab -l "$zellij_layout"
+  fi
+
+  cd "$workspace"
+  exec zellij --layout "$zellij_layout"
+fi

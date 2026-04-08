@@ -1,0 +1,141 @@
+#!/usr/bin/env python3
+import re
+from collections import Counter, defaultdict
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parent.parent
+KB = REPO / "kb"
+WIKI = KB / "wiki"
+META = KB / "meta"
+
+WIKILINK_RE = re.compile(r"\[\[([^\]|#]+)")
+FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n?", re.S)
+
+
+def note_name(path: Path) -> str:
+    return path.stem
+
+
+def extract_aliases(text: str) -> set[str]:
+    match = FRONTMATTER_RE.match(text)
+    if not match:
+        return set()
+
+    aliases: set[str] = set()
+    lines = match.group(1).splitlines()
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        stripped = line.strip()
+        if not stripped.startswith("aliases:"):
+            i += 1
+            continue
+
+        value = stripped.partition(":")[2].strip()
+        if value.startswith("[") and value.endswith("]"):
+            items = [item.strip().strip("'\"") for item in value[1:-1].split(",")]
+            aliases.update(item for item in items if item)
+            return aliases
+        if value:
+            aliases.add(value.strip("'\""))
+            return aliases
+
+        i += 1
+        while i < len(lines):
+            child = lines[i].strip()
+            if not child.startswith("- "):
+                break
+            alias = child[2:].strip().strip("'\"")
+            if alias:
+                aliases.add(alias)
+            i += 1
+        return aliases
+
+    return aliases
+
+
+def main() -> int:
+    notes = sorted(WIKI.rglob("*.md"))
+    if not notes:
+        print("No wiki notes found.")
+        return 0
+
+    link_sources = notes + sorted(META.rglob("*.md")) + sorted(REPO.glob("*.md"))
+
+    names = Counter(note_name(p) for p in notes)
+    duplicates = sorted(name for name, count in names.items() if count > 1)
+    inbound = Counter()
+    missing_frontmatter = []
+    missing_sources = []
+    broken_links = defaultdict(set)
+    alias_to_note = {}
+    for path in KB.rglob("*.md"):
+        text = path.read_text(encoding="utf-8")
+        canonical = path.stem
+        alias_to_note[canonical] = canonical
+        for alias in extract_aliases(text):
+            alias_to_note.setdefault(alias, canonical)
+
+    for path in REPO.glob("*.md"):
+        text = path.read_text(encoding="utf-8")
+        canonical = path.stem
+        alias_to_note[canonical] = canonical
+        for alias in extract_aliases(text):
+            alias_to_note.setdefault(alias, canonical)
+
+    vault_note_names = set(alias_to_note)
+
+    for note in link_sources:
+        text = note.read_text(encoding="utf-8")
+        rel = note.relative_to(REPO)
+        rel_posix = str(rel).replace("\\", "/")
+
+        if note in notes and not text.startswith("---\n"):
+            missing_frontmatter.append(str(rel))
+        if note in notes and "## Sources" not in text and "/maps/" not in rel_posix:
+            missing_sources.append(str(rel))
+
+        for raw_target in WIKILINK_RE.findall(text):
+            target = raw_target.strip()
+            if not target:
+                continue
+            target_name = Path(target).name
+            canonical_target = alias_to_note.get(target_name, target_name)
+            if canonical_target in names:
+                inbound[canonical_target] += 1
+            elif target_name not in vault_note_names:
+                broken_links[str(rel)].add(target_name)
+
+    orphans = sorted(
+        str(p.relative_to(REPO))
+        for p in notes
+        if inbound[note_name(p)] == 0 and "/maps/" not in str(p).replace("\\", "/")
+    )
+
+    print(f"Total wiki notes: {len(notes)}")
+    print(f"Duplicate note names: {len(duplicates)}")
+    for item in duplicates:
+        print(f"  DUPLICATE: {item}")
+
+    print(f"Orphan wiki notes: {len(orphans)}")
+    for item in orphans:
+        print(f"  ORPHAN: {item}")
+
+    print(f"Missing frontmatter: {len(missing_frontmatter)}")
+    for item in missing_frontmatter:
+        print(f"  NO FRONTMATTER: {item}")
+
+    print(f"Missing ## Sources: {len(missing_sources)}")
+    for item in missing_sources:
+        print(f"  NO SOURCES: {item}")
+
+    broken_count = sum(len(v) for v in broken_links.values())
+    print(f"Potential broken wikilinks: {broken_count}")
+    for note, targets in sorted(broken_links.items()):
+        for target in sorted(targets):
+            print(f"  BROKEN?: {note} -> {target}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
