@@ -17,7 +17,7 @@ One command sets up Ghostty, zsh, Starship, a curated Rust CLI toolchain, option
 ## Quick start
 
 ```bash
-git clone <your-repo-url> zot
+git clone git@github.com:Hurricane0698/zot.git
 cd zot
 ./setup.sh
 ```

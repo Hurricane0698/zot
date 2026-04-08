@@ -17,7 +17,7 @@
 ## 快速开始
 
 ```bash
-git clone <your-repo-url> zot
+git clone git@github.com:Hurricane0698/zot.git
 cd zot
 ./setup.sh
 ```

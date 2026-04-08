@@ -28,7 +28,7 @@ tmux多开屏幕，一个读项目，一个ai开发，一个obsidian学习
 
 好了，那怎么让所有人都用上呢？配置环境太麻烦了。所以，我参考一些开源项目，做了这个一键安装我现在的配置的开源项目zot。
 项目链接：
-[zot](https://github.com/yourusername/zot)
+[zot](https://github.com/Hurricane0698/zot)
 壁纸大家可以换成适合自己审美的，而剩下的，我都为你们准备好了。安装脚本会帮你安装好所有的工具，配置好环境，甚至帮你把obsidian的project note做好。你只需要运行几个命令，就能拥有这个极致爽快的终端环境了。
 
 当然，或许站内不少佬友也在用类似的环境了。看到这里，大家可能有些疑问：
@@ -78,4 +78,4 @@ macOS、Debian/Ubuntu、Windows（WSL）。如果是原生 Windows，`./setup.sh
 
 我还有一个项目代号名叫om。它将会是这个想法的下一步，更加极致舒适的体验。感兴趣的佬友可以关注我。
 
-[zot](https://github.com/yourusername/zot)，如果你觉得项目有帮助，欢迎给个star，谢谢！
+[zot](https://github.com/Hurricane0698/zot)，如果你觉得项目有帮助，欢迎给个star，谢谢！
