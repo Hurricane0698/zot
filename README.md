@@ -214,3 +214,7 @@ git log --stat --oneline -20
 ## License
 
 [MIT](LICENSE)
+
+## Links
+
+[linux.do](https://linux.do)
