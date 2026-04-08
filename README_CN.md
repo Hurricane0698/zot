@@ -17,12 +17,14 @@
 ## 快速开始
 
 ```bash
-git clone git@github.com:Hurricane0698/zot.git
+git clone https://github.com/Hurricane0698/zot.git
 cd zot
 ./setup.sh
 ```
 
 装完后重启 shell，就能直接开始用。
+
+如果你的机器上 SSH 还没配好，先用上面的 HTTPS 地址就行；之后想改成 SSH，再切换 remote 即可。
 
 常用参数：
 
