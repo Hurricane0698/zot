@@ -2,7 +2,7 @@
 
 一个面向 AI 时代的现代终端环境，让人和 agent 在同一套本地工作流里顺畅协作，而不是把 AI 额外挂在老旧 shell 上。
 
-一条命令装好 Ghostty、zsh、Starship、一整套现代 CLI 工具、可选 AI CLI，以及基于 Obsidian 的知识工作流。该配的都配好，尽量不让你手动折腾。
+一条命令装好 Ghostty、zsh、Starship、一整套现代 CLI 工具、可选 AI CLI，以及基于 Obsidian 的知识工作流。
 
 **English: [`README.md`](README.md)**
 
@@ -22,7 +22,13 @@ cd zot
 ./setup.sh
 ```
 
-装完后重启 shell，就能直接开始用。
+装完后打开一个全新的 shell，就能直接开始用。
+
+如果 shell 看起来没切过来，先跑：
+
+```bash
+"$HOME/.local/bin/zot-doctor" shell
+```
 
 常用参数：
 

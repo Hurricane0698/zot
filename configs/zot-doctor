@@ -1,0 +1,174 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage:
+  zot-doctor shell
+
+Checks the most common "setup finished but the terminal still looks unchanged"
+cases on macOS, Ubuntu/Debian, and WSL.
+EOF
+}
+
+info_line() {
+  printf '  %-24s %s\n' "$1" "$2"
+}
+
+yes_no() {
+  if [[ "$1" == "true" ]]; then
+    printf 'yes\n'
+  else
+    printf 'no\n'
+  fi
+}
+
+detect_os_label() {
+  if [[ -r /etc/os-release ]]; then
+    . /etc/os-release
+    if [[ -n "${PRETTY_NAME:-}" ]]; then
+      printf '%s\n' "$PRETTY_NAME"
+      return
+    fi
+  fi
+  uname -s
+}
+
+detect_account_shell() {
+  local user_name="${USER:-}"
+  local shell_path=""
+
+  case "$(uname -s)" in
+    Darwin)
+      if [[ -n "$user_name" ]] && command -v dscl >/dev/null 2>&1; then
+        shell_path="$(dscl . -read "/Users/$user_name" UserShell 2>/dev/null | awk '{print $2}' || true)"
+      fi
+      ;;
+    *)
+      if [[ -n "$user_name" ]] && command -v getent >/dev/null 2>&1; then
+        shell_path="$(getent passwd "$user_name" | cut -d: -f7 || true)"
+      elif [[ -n "$user_name" && -r /etc/passwd ]]; then
+        shell_path="$(awk -F: -v u="$user_name" '$1 == u { print $7; exit }' /etc/passwd || true)"
+      fi
+      ;;
+  esac
+
+  printf '%s\n' "$shell_path"
+}
+
+has_zot_zshrc="false"
+if [[ -f "$HOME/.zshrc" ]] && grep -q 'ZOT_WORKFLOW_HOME' "$HOME/.zshrc"; then
+  has_zot_zshrc="true"
+fi
+
+shell_env="${SHELL:-}"
+parent_process="$(ps -p "$PPID" -o comm= 2>/dev/null | awk '{$1=$1; print}' || true)"
+account_shell="$(detect_account_shell)"
+zsh_path="$(command -v zsh 2>/dev/null || true)"
+starship_path="$(command -v starship 2>/dev/null || true)"
+workflow_home=""
+workflow_home_exists="false"
+zot_vars_loaded="false"
+mux_loaded="false"
+project_context_loaded="false"
+starship_visible_in_zsh="false"
+
+if [[ -n "$zsh_path" ]]; then
+  if zsh -ic 'typeset -p ZOT_WORKFLOW_HOME >/dev/null 2>&1' >/dev/null 2>&1; then
+    zot_vars_loaded="true"
+  fi
+  if zsh -ic 'whence -w mux >/dev/null 2>&1' >/dev/null 2>&1; then
+    mux_loaded="true"
+  fi
+  if zsh -ic 'whence -w project-context >/dev/null 2>&1' >/dev/null 2>&1; then
+    project_context_loaded="true"
+  fi
+  if zsh -ic 'command -v starship >/dev/null 2>&1' >/dev/null 2>&1; then
+    starship_visible_in_zsh="true"
+  fi
+  workflow_home="$(zsh -ic 'printf "%s\n" "${ZOT_WORKFLOW_HOME:-}"' 2>/dev/null | tail -n1 || true)"
+  if [[ -n "$workflow_home" && -d "$workflow_home" ]]; then
+    workflow_home_exists="true"
+  fi
+fi
+
+case "${1:-}" in
+  shell)
+    ;;
+  ""|-h|--help|help)
+    usage
+    exit 0
+    ;;
+  *)
+    echo "zot-doctor: unknown subcommand: $1" >&2
+    usage >&2
+    exit 1
+    ;;
+esac
+
+printf 'zot-doctor: shell activation\n'
+info_line "OS" "$(detect_os_label)"
+info_line "parent process" "${parent_process:-unknown}"
+info_line "SHELL env" "${shell_env:-unset}"
+info_line "account login shell" "${account_shell:-unknown}"
+info_line "zsh path" "${zsh_path:-missing}"
+info_line "starship path" "${starship_path:-missing}"
+info_line "~/.zshrc looks like zot" "$(yes_no "$has_zot_zshrc")"
+info_line "zot vars load in zsh" "$(yes_no "$zot_vars_loaded")"
+info_line "mux available in zsh" "$(yes_no "$mux_loaded")"
+info_line "project-context in zsh" "$(yes_no "$project_context_loaded")"
+info_line "starship visible in zsh" "$(yes_no "$starship_visible_in_zsh")"
+info_line "ZOT_WORKFLOW_HOME" "${workflow_home:-unset}"
+info_line "workflow home exists" "$(yes_no "$workflow_home_exists")"
+
+issue=""
+advice_1=""
+advice_2=""
+advice_3=""
+
+if [[ -z "$zsh_path" ]]; then
+  issue="zsh is missing, so zot cannot become your interactive shell yet."
+  advice_1="Rerun ./setup.sh and watch the zsh install step."
+  advice_2="On Ubuntu/Debian you can also install it manually with: sudo apt install zsh"
+elif [[ "$account_shell" != "$zsh_path" ]]; then
+  issue="Your account login shell is still not zsh."
+  advice_1="Run: chsh -s \"$zsh_path\""
+  advice_2="Then fully log out of the desktop session and log back in. On Ubuntu 24.04, closing one terminal tab is often not enough."
+  advice_3="For an immediate one-off test in the current terminal, run: exec zsh"
+elif [[ "${shell_env##*/}" != "zsh" && "$parent_process" != *zsh* ]]; then
+  issue="zsh is configured as the login shell, but this terminal session is still using an older shell."
+  advice_1="Close every terminal window and open a fresh one."
+  advice_2="If it still comes back unchanged, check whether your terminal profile is forcing a custom command instead of the account login shell."
+  advice_3="You can test the new shell immediately with: exec zsh"
+elif [[ "$has_zot_zshrc" != "true" ]]; then
+  issue="~/.zshrc does not look like the zot-managed config."
+  advice_1="Rerun ./setup.sh so it can redeploy ~/.zshrc."
+  advice_2="If you had an older ~/.zshrc, compare it with the timestamped ~/.zshrc.bak.* backup."
+elif [[ -n "$workflow_home" && "$workflow_home_exists" != "true" ]]; then
+  issue="Your zsh config points to a zot repo path that no longer exists."
+  advice_1="Do not move or delete the zot repo after setup, or rerun ./setup.sh from its new location."
+  advice_2="Current configured path: $workflow_home"
+elif [[ "$mux_loaded" != "true" || "$project_context_loaded" != "true" || "$zot_vars_loaded" != "true" ]]; then
+  issue="zsh starts, but zot helpers are not loading correctly from ~/.zshrc."
+  advice_1="Run: zsh -ic 'whence -w mux project-context'"
+  advice_2="If that fails, rerun ./setup.sh to redeploy ~/.zshrc and helper scripts."
+elif [[ "$starship_visible_in_zsh" != "true" ]]; then
+  issue="zsh is active, but starship is missing, so the prompt may look unchanged."
+  advice_1="Rerun ./setup.sh to install starship."
+  advice_2="Even without the prompt theme, zot helpers should still work: zsh -ic 'whence -w mux project-context'"
+else
+  issue="Shell activation looks healthy."
+  advice_1="If the prompt still looks plain, make sure your terminal font supports MesloLGS NF glyphs."
+  advice_2="You can still verify the zot layer by running: zsh -ic 'whence -w mux project-context'"
+fi
+
+printf '\nLikely issue:\n'
+printf '  %s\n' "$issue"
+printf '\nSuggested next steps:\n'
+printf '  1. %s\n' "$advice_1"
+if [[ -n "$advice_2" ]]; then
+  printf '  2. %s\n' "$advice_2"
+fi
+if [[ -n "$advice_3" ]]; then
+  printf '  3. %s\n' "$advice_3"
+fi

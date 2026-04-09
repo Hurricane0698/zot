@@ -2,7 +2,7 @@
 
 A modern terminal environment where humans and AI agents work side by side — not AI bolted onto a 1990s shell.
 
-One command sets up Ghostty, zsh, Starship, a curated Rust CLI toolchain, optional AI CLIs, and an Obsidian-based knowledge workflow. Everything configured, everything themed, zero manual fiddling.
+One command sets up Ghostty, zsh, Starship, a curated Rust CLI toolchain, optional AI CLIs, and an Obsidian-based knowledge workflow. 
 
 **中文文档：[`README_CN.md`](README_CN.md)**
 
@@ -22,7 +22,13 @@ cd zot
 ./setup.sh
 ```
 
-That's it. Restart your shell and everything is ready.
+That's it. Open a brand-new shell and everything is ready.
+
+If the shell still looks unchanged, run:
+
+```bash
+"$HOME/.local/bin/zot-doctor" shell
+```
 
 
 Useful flags:

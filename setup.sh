@@ -84,6 +84,28 @@ run_shell() {
 
 has_cmd() { command -v "$1" >/dev/null 2>&1; }
 
+detect_account_shell() {
+  local user_name="${USER:-}"
+  local shell_path=""
+
+  case "$OS" in
+    macos)
+      if [[ -n "$user_name" ]] && has_cmd dscl; then
+        shell_path="$(dscl . -read "/Users/$user_name" UserShell 2>/dev/null | awk '{print $2}' || true)"
+      fi
+      ;;
+    debian|wsl)
+      if [[ -n "$user_name" ]] && has_cmd getent; then
+        shell_path="$(getent passwd "$user_name" | cut -d: -f7 || true)"
+      elif [[ -n "$user_name" && -r /etc/passwd ]]; then
+        shell_path="$(awk -F: -v u="$user_name" '$1 == u { print $7; exit }' /etc/passwd || true)"
+      fi
+      ;;
+  esac
+
+  printf '%s\n' "$shell_path"
+}
+
 command_version() {
   local cmd="$1"
   local timeout_cmd=()
@@ -849,12 +871,24 @@ install_zsh_stack() {
   esac
 
   local zsh_path
+  local account_shell
   zsh_path="$(command -v zsh)"
-  if [[ "${SHELL:-}" != "$zsh_path" ]]; then
-    info "Setting zsh as default shell..."
+  account_shell="$(detect_account_shell)"
+  if [[ "$account_shell" != "$zsh_path" ]]; then
+    info "Setting zsh as default login shell..."
     run_cmd chsh -s "$zsh_path"
+    if ! $DRY_RUN; then
+      account_shell="$(detect_account_shell)"
+      if [[ "$account_shell" == "$zsh_path" ]]; then
+        success "zsh is now your default login shell"
+      else
+        warn "zsh was installed, but your login shell still looks like: ${account_shell:-unknown}"
+        warn "On Ubuntu / GNOME, closing one terminal tab is often not enough after \`chsh\`."
+        warn "Fully log out of the desktop session, or run \`exec zsh\` once to verify the new shell immediately."
+      fi
+    fi
   else
-    success "zsh is already the default shell"
+    success "zsh is already the default login shell"
   fi
 }
 
@@ -1159,6 +1193,11 @@ deploy_configs() {
   run_cmd chmod +x "$HOME/.local/bin/zot-copy"
   success "Clipboard helper deployed"
 
+  backup_file "$HOME/.local/bin/zot-doctor"
+  run_cmd cp "$CONFIGS_DIR/zot-doctor" "$HOME/.local/bin/zot-doctor"
+  run_cmd chmod +x "$HOME/.local/bin/zot-doctor"
+  success "Diagnostics helper deployed"
+
   backup_file "$HOME/.local/bin/zot-mux-code"
   run_cmd cp "$CONFIGS_DIR/zot-mux-code" "$HOME/.local/bin/zot-mux-code"
   run_cmd chmod +x "$HOME/.local/bin/zot-mux-code"
@@ -1238,15 +1277,20 @@ print_next_steps() {
   cat <<EOF2
 
 Next steps:
-  1. Restart your shell.
-  2. If you installed AI CLIs, run ${BOLD}claude${NC}, ${BOLD}codex${NC}, or ${BOLD}gemini${NC} once to complete sign-in.
-  3. Create your vault:
+  1. Open a brand-new shell.
+     If Ubuntu / GNOME still looks unchanged, run ${BOLD}exec zsh${NC} once to test, or fully log out of the desktop session after ${BOLD}chsh${NC}.
+  2. Verify shell activation:
+       echo "\$SHELL"
+       echo "\$0"
+       "\$HOME/.local/bin/zot-doctor" shell
+  3. If you installed AI CLIs, run ${BOLD}claude${NC}, ${BOLD}codex${NC}, or ${BOLD}gemini${NC} once to complete sign-in.
+  4. Create your vault:
        ./scripts/init-vault "\$HOME/zot-vault"
-  4. Initialize any repo with AGENTS + project note:
+  5. Initialize any repo with AGENTS + project note:
        ./scripts/init-project /path/to/project --vault "\$HOME/zot-vault"
-  5. In a project repo, print a working context bundle:
+  6. In a project repo, print a working context bundle:
        project-context
-  6. Reinstall bundled home-level skill templates if needed:
+  7. Reinstall bundled home-level skill templates if needed:
        ./scripts/install-home-skills
 
 Mental model:
