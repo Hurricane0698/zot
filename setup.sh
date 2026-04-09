@@ -86,7 +86,28 @@ has_cmd() { command -v "$1" >/dev/null 2>&1; }
 
 command_version() {
   local cmd="$1"
-  "$cmd" --version 2>/dev/null | head -n1 || true
+  local timeout_cmd=()
+  local output=""
+
+  # Some CLIs accidentally read from the interactive TTY during version probes.
+  # Keep stdin closed and time-box the check so setup never appears hung.
+  if has_cmd timeout; then
+    timeout_cmd=(timeout 5s)
+  elif has_cmd gtimeout; then
+    timeout_cmd=(gtimeout 5s)
+  fi
+
+  if [[ ${#timeout_cmd[@]} -gt 0 ]]; then
+    output="$("${timeout_cmd[@]}" "$cmd" --version </dev/null 2>/dev/null | head -n1 || true)"
+  else
+    output="$("$cmd" --version </dev/null 2>/dev/null | head -n1 || true)"
+  fi
+
+  if [[ -n "$output" ]]; then
+    printf '%s\n' "$output"
+  else
+    printf 'installed (version unavailable)\n'
+  fi
 }
 
 prompt_yes_no() {
