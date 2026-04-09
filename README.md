@@ -24,7 +24,6 @@ cd zot
 
 That's it. Restart your shell and everything is ready.
 
-If SSH is unavailable on your machine, use the HTTPS URL above. If you prefer SSH later, you can switch the repo remote after cloning.
 
 Useful flags:
 
@@ -65,6 +64,7 @@ Useful flags:
 - `mux code` opens a default AI coding layout: large main pane on the left, `project-context` on upper right, tests/build on lower right.
 - Claude Code uses Anthropic's native installer. Codex CLI and Gemini CLI install through npm after Node.js is ready. Auth happens on first launch.
 - On WSL, CLI tools go inside Linux. The script also tries to install Obsidian, Windows Terminal, and the bundled `MesloLGS NF` fonts on the Windows side so Starship glyphs render correctly.
+- In non-interactive WSL runs, zot skips Windows-side installers to avoid hanging on PowerShell, winget, or font prompts.
 - On a native Windows shell, `./setup.sh` acts as a bootstrapper: it will try `wsl --install -d Ubuntu`, then print the exact WSL command to rerun `./setup.sh`.
 - The setup also installs bundled home-level skill templates into `~/.codex/skills` and `~/.agents/skills`, plus matching Claude command templates into `~/.claude/commands`, without overwriting your existing files.
 - Existing shell and terminal configs are backed up before replacement.

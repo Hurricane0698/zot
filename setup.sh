@@ -37,6 +37,8 @@ NC='\033[0m'
 
 DRY_RUN=false
 YES=false
+INTERACTIVE=true
+SKIP_WINDOWS_SIDE_ACTIONS=false
 INSTALL_OBSIDIAN=true
 INSTALL_NODE=true
 INSTALL_QMD=true
@@ -66,7 +68,7 @@ usage() {
 
 run_cmd() {
   if $DRY_RUN; then
-    echo -e "${YELLOW}[DRY-RUN]${NC} $*"
+    printf '%b%s\n' "${YELLOW}[DRY-RUN]${NC} " "$*"
   else
     "$@"
   fi
@@ -74,7 +76,7 @@ run_cmd() {
 
 run_shell() {
   if $DRY_RUN; then
-    echo -e "${YELLOW}[DRY-RUN]${NC} $*"
+    printf '%b%s\n' "${YELLOW}[DRY-RUN]${NC} " "$*"
   else
     bash -lc "$*"
   fi
@@ -91,6 +93,10 @@ prompt_yes_no() {
   local prompt="$1"
   local default="${2:-N}"
   local reply=""
+  if ! $INTERACTIVE; then
+    [[ "$default" =~ ^[Yy]$ ]]
+    return
+  fi
   if [[ "$default" =~ ^[Yy]$ ]]; then
     read -r -p "$prompt [Y/n] " reply
     [[ -z "$reply" || "$reply" =~ ^[Yy]$ ]]
@@ -140,6 +146,13 @@ detect_os() {
   esac
 }
 
+detect_interactive() {
+  if [[ -n "${ZOT_NONINTERACTIVE:-}" || -n "${CI:-}" ]]; then
+    return 1
+  fi
+  [[ -t 0 && -t 1 ]]
+}
+
 OS="$(detect_os)"
 
 for arg in "$@"; do
@@ -172,6 +185,28 @@ CONFIGS_DIR="$SCRIPT_DIR/configs"
 FONT_SRC_DIR="$SCRIPT_DIR/fonts"
 [[ -d "$CONFIGS_DIR" ]] || error "Run ./setup.sh from the zot repository root."
 
+if ! detect_interactive; then
+  INTERACTIVE=false
+  info "Non-interactive shell detected; setup will continue with safe defaults."
+fi
+
+if [[ "$OS" == "wsl" ]] && ! $INTERACTIVE; then
+  SKIP_WINDOWS_SIDE_ACTIONS=true
+  info "Skipping Windows-side installs from this non-interactive WSL session to avoid hanging on GUI or winget prompts."
+fi
+
+warn_wsl_checkout() {
+  [[ "$OS" == "wsl" ]] || return 0
+  case "$SCRIPT_DIR" in
+    /mnt/*)
+      warn "zot is running from a Windows-mounted path: $SCRIPT_DIR"
+      warn "If you hit '/usr/bin/env: bash\\r' or other script execution issues, reclone or move this repo into the WSL filesystem, for example under \$HOME/src."
+      ;;
+  esac
+}
+
+warn_wsl_checkout
+
 if ! $YES && ! $DRY_RUN; then
   echo ""
   echo -e "${BOLD}zot will install/configure:${NC}"
@@ -190,8 +225,12 @@ if ! $YES && ! $DRY_RUN; then
     echo "  - home skills: bundled Codex/Agents skill templates + Claude command templates"
   fi
   echo ""
-  read -r -p "Continue? [y/N] " reply
-  [[ "$reply" =~ ^[Yy]$ ]] || error "Aborted."
+  if $INTERACTIVE; then
+    read -r -p "Continue? [y/N] " reply
+    [[ "$reply" =~ ^[Yy]$ ]] || error "Aborted."
+  else
+    info "Proceeding without prompts. Pass --yes to auto-install optional components too."
+  fi
 fi
 
 choose_multiplexer_plan() {
@@ -200,7 +239,7 @@ choose_multiplexer_plan() {
   has_cmd tmux && has_tmux_installed=true
   has_cmd zellij && has_zellij_installed=true
 
-  if $YES || $DRY_RUN; then
+  if $YES || $DRY_RUN || ! $INTERACTIVE; then
     if $has_zellij_installed; then
       PREFERRED_MULTIPLEXER="zellij"
     elif $has_tmux_installed; then
@@ -271,7 +310,9 @@ choose_ai_cli_plan() {
   has_cmd codex && codex_present=true
   has_cmd gemini && gemini_present=true
 
-  if $YES || $DRY_RUN; then
+  if ! $YES && ! $DRY_RUN && ! $INTERACTIVE; then
+    info "Skipping optional AI CLI prompts in non-interactive mode. Pass --yes if you want zot to install all missing AI CLIs."
+  elif $YES || $DRY_RUN; then
     if ! $claude_present; then
       INSTALL_CLAUDE_CODE=true
     fi
@@ -482,7 +523,7 @@ run_windows_powershell() {
     return 1
   }
   if $DRY_RUN; then
-    echo -e "${YELLOW}[DRY-RUN]${NC} $ps_cmd -NoProfile -ExecutionPolicy Bypass -Command $script"
+    printf '%b%s\n' "${YELLOW}[DRY-RUN]${NC} " "$ps_cmd -NoProfile -ExecutionPolicy Bypass -Command $script"
   else
     case "$ps_cmd" in
       powershell*|*.exe)
@@ -507,7 +548,7 @@ run_windows_powershell_file() {
   host_script="$(windows_host_path "$script_file")"
 
   if $DRY_RUN; then
-    echo -e "${YELLOW}[DRY-RUN]${NC} $ps_cmd -NoProfile -ExecutionPolicy Bypass -File $host_script $*"
+    printf '%b%s\n' "${YELLOW}[DRY-RUN]${NC} " "$ps_cmd -NoProfile -ExecutionPolicy Bypass -File $host_script $*"
     return 0
   fi
 
@@ -551,6 +592,10 @@ bootstrap_native_windows_wsl() {
 install_windows_app_wsl() {
   local winget_id="$1"
   local app_name="$2"
+  if $SKIP_WINDOWS_SIDE_ACTIONS; then
+    info "Skipping Windows-side install of $app_name in this non-interactive WSL session."
+    return 0
+  fi
   if ! windows_powershell_cmd >/dev/null 2>&1; then
     warn "powershell.exe is not available from WSL. Install $app_name manually on Windows."
     return 0
@@ -565,6 +610,11 @@ install_windows_app_wsl() {
 
 install_windows_fonts_wsl() {
   [[ "$OS" == "wsl" ]] || return 0
+
+  if $SKIP_WINDOWS_SIDE_ACTIONS; then
+    info "Skipping Windows-side font installation in this non-interactive WSL session."
+    return 0
+  fi
 
   if ! windows_powershell_cmd >/dev/null 2>&1; then
     warn "powershell.exe is not available from WSL. Install MesloLGS NF manually on Windows if Starship icons look broken."

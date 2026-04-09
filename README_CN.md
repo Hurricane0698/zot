@@ -24,8 +24,6 @@ cd zot
 
 装完后重启 shell，就能直接开始用。
 
-如果你的机器上 SSH 还没配好，先用上面的 HTTPS 地址就行；之后想改成 SSH，再切换 remote 即可。
-
 常用参数：
 
 ```bash
@@ -65,6 +63,7 @@ cd zot
 - `mux code` 会打开默认 AI 编码布局：左边主 pane，右上 `project-context`，右下 tests / build。
 - Claude Code 使用 Anthropic 官方安装器；Codex CLI 和 Gemini CLI 在 Node.js 就绪后通过 npm 安装。
 - 在 WSL 下，CLI 工具装在 Linux 侧，脚本还会尽量帮你在 Windows 侧装 Obsidian、Windows Terminal 和 MesloLGS NF 字体。
+- 在非交互式的 WSL 环境里，zot 会跳过 Windows 侧安装，避免卡在 PowerShell、winget 或字体安装提示上。
 - 在原生 Windows shell 下，`./setup.sh` 会先尝试执行 `wsl --install -d Ubuntu`，再打印出下一步该怎么进 WSL 继续安装。
 - 安装过程中还会把仓库内置的 home-level skill 模板复制到 `~/.codex/skills` 和 `~/.agents/skills`，并把对应的 Claude Code 命令模板复制到 `~/.claude/commands`，默认不覆盖你已有的文件。
 - 现有 shell / terminal 配置会先备份，再替换。

@@ -1,0 +1,11 @@
+*.sh text eol=lf
+*.md text eol=lf
+*.toml text eol=lf
+*.kdl text eol=lf
+scripts/** text eol=lf
+configs/** text eol=lf
+templates/** text eol=lf
+*.ps1 text eol=crlf
+bin/** binary
+*.png binary
+*.ttf binary
