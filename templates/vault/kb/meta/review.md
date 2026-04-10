@@ -16,6 +16,7 @@ aliases: [Review Protocol]
 ## Weekly (30-60 min)
 - Run `scripts/kb-lint`.
 - Review the last 7-14 log entries in `kb/meta/log.md`.
+- Triage open notes under `kb/human/feedback/open/`.
 - Consolidate duplicate ideas or weakly linked notes.
 - Turn at least one repeated answer into a durable wiki note.
 - Create one "teach it back" note in `kb/human/active-output/`.

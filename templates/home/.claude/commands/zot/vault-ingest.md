@@ -13,3 +13,6 @@ Workflow:
 8. Run `"$ZOT_VAULT/scripts/kb-lint"` after the changes.
 
 If `$ARGUMENTS` names a source, use it as the title or ingest target. If it is empty, ask the user what should be captured.
+
+Guardrail:
+- Keep this command focused on one source or one small coherent batch. If the task expands into restructure, query promotion, or feedback triage, switch to `vault-wiki`.

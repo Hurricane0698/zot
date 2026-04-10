@@ -1,0 +1,87 @@
+#!/usr/bin/env python3
+import argparse
+import getpass
+import re
+import sys
+from datetime import datetime
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parent.parent
+FEEDBACK_ROOT = REPO / "kb" / "human" / "feedback" / "open"
+SEVERITIES = ("info", "suggest", "warn", "error")
+
+
+def slugify(text: str) -> str:
+    text = text.strip().lower()
+    text = re.sub(r"[^a-z0-9\u4e00-\u9fff]+", "-", text)
+    text = re.sub(r"-{2,}", "-", text).strip("-")
+    return text or "feedback"
+
+
+def yaml_scalar(value: str) -> str:
+    return "'" + value.replace("'", "''") + "'"
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Create a feedback note inside kb/human/feedback/open.")
+    parser.add_argument("--title", required=True)
+    parser.add_argument("--target", required=True, help='Prefer a wikilink such as "[[Atlas]]".')
+    parser.add_argument("--severity", default="suggest", choices=SEVERITIES)
+    parser.add_argument("--author", default=getpass.getuser())
+    parser.add_argument("--created", default=datetime.now().strftime("%Y-%m-%d %H:%M"))
+    parser.add_argument("--comment", default="")
+    parser.add_argument("--path", default="")
+    parser.add_argument(
+        "--stdin",
+        action="store_true",
+        help="Read the feedback body from stdin even if stdin is a TTY.",
+    )
+    args = parser.parse_args()
+
+    body = args.comment.strip()
+    if args.stdin or not sys.stdin.isatty():
+        stdin_body = sys.stdin.read().rstrip()
+        if stdin_body:
+            body = f"{body}\n\n{stdin_body}".strip() if body else stdin_body
+
+    if args.path:
+        path = REPO / args.path
+        path.parent.mkdir(parents=True, exist_ok=True)
+    else:
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M")
+        base = f"{timestamp}-{slugify(args.title)}"
+        path = FEEDBACK_ROOT / f"{base}.md"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        i = 2
+        while path.exists():
+            path = FEEDBACK_ROOT / f"{base}-{i}.md"
+            i += 1
+
+    lines = [
+        "---",
+        "type: feedback",
+        f"title: {yaml_scalar(args.title)}",
+        f"target: {yaml_scalar(args.target)}",
+        f"severity: {args.severity}",
+        "status: open",
+        f"created: {args.created}",
+        f"author: {yaml_scalar(args.author)}",
+        "---",
+        "",
+        "# Feedback",
+        "",
+    ]
+    if body:
+        lines.append(body)
+        lines.append("")
+    else:
+        lines.extend(["Describe the issue here.", ""])
+    lines.extend(["# Resolution", "", "<!-- Fill this section in when the feedback is resolved. -->", ""])
+
+    path.write_text("\n".join(lines), encoding="utf-8")
+    print(path)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

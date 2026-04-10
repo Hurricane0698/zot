@@ -40,13 +40,24 @@ tooling_env="$vault_kb_path/meta/tooling.env"
 copy_missing() {
   local src="$1"
   local dst="$2"
+  local overwrite="${3:-false}"
   (
     cd "$src"
     while IFS= read -r -d '' dir; do
+      case "$dir" in
+        */__pycache__|./__pycache__)
+          continue
+          ;;
+      esac
       mkdir -p "$dst/$dir"
     done < <(find . -type d -print0)
     while IFS= read -r -d '' file; do
-      if [[ ! -e "$dst/$file" ]]; then
+      case "$file" in
+        *.pyc|*.pyo|*/__pycache__/*)
+          continue
+          ;;
+      esac
+      if $overwrite || [[ ! -e "$dst/$file" ]]; then
         cp -p "$file" "$dst/$file"
       fi
     done < <(find . -type f -print0)
@@ -101,7 +112,7 @@ validate_collection_name() {
 }
 
 if $force; then
-  cp -R "$template_dir"/. "$vault_path"/
+  copy_missing "$template_dir" "$vault_path" true
 else
   copy_missing "$template_dir" "$vault_path"
 fi
@@ -187,6 +198,6 @@ QMD collection:
   $collection
 
 Tip:
-  Bundled home-level skills like zot-vault-search / zot-vault-ingest / zot-vault-review
+  Bundled home-level skills like zot-vault-search / zot-vault-ingest / zot-vault-review / zot-vault-wiki
   can operate directly on this vault.
 EOF2

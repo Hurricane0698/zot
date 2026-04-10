@@ -174,9 +174,15 @@ Bundled templates now include:
 - `zot-vault-search`
 - `zot-vault-ingest`
 - `zot-vault-review`
+- `zot-vault-wiki`
 - `.agents/skills/qmd`
 
 They install non-destructively during `./setup.sh`, and you can rerun `./scripts/install-home-skills` any time.
+Role split:
+- `zot-vault-search`: retrieval only
+- `zot-vault-ingest`: one source or one small coherent batch
+- `zot-vault-review`: periodic maintenance and retrospection
+- `zot-vault-wiki`: multi-step compiled-wiki orchestration across the layers above
 
 If you use Claude Code, the same workflows are also installed as slash-command templates under `~/.claude/commands/zot/`.
 

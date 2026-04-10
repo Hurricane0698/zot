@@ -14,6 +14,7 @@ This vault is the shared substrate for:
 - `kb/raw/**` = immutable source material. Add new captures; do not rewrite source text.
 - `kb/wiki/**` = durable synthesis. Agents may create, split, merge, and update notes here.
 - `kb/human/**` = human thinking and active recall. Avoid rewriting the user's prose unless explicitly asked.
+- `kb/human/feedback/**` = durable correction notes waiting to be resolved or archived.
 - `kb/meta/**` = shared operating metadata: index, logs, review notes.
 - `kb/templates/**` = note skeletons for repeatable structure.
 
@@ -39,6 +40,8 @@ This vault is the shared substrate for:
   - `scratch/` temporary thought fragments
   - `prompts/` reusable prompt seeds
   - `active-output/` recall drills, self-tests, application prompts
+  - `feedback/open/` unresolved correction notes
+  - `feedback/resolved/` archived corrections with resolutions
 - `kb/meta/`
   - `index.md` catalog and jump page
   - `log.md` append-only operations log
@@ -72,7 +75,15 @@ Periodically check for:
 - duplicated concepts that should be merged
 - missing `## Sources` sections on durable notes
 - broken wikilinks or missing frontmatter
+- malformed feedback notes or feedback pointing at missing targets
 Use `scripts/kb-lint` for a first-pass mechanical check and `scripts/kb-smoke-test` when the local workflow needs verification.
+
+### 4) Feedback / correction loop
+When the user flags a stale claim, ambiguous note, or factual error:
+1. Create or update a note under `kb/human/feedback/open/`, preferably with `scripts/kb-feedback`.
+2. Target the affected note directly with a wikilink such as `[[Atlas]]`.
+3. Resolve open feedback during review or before large restructures.
+4. Move resolved feedback to `kb/human/feedback/resolved/` and keep the resolution note intact.
 
 ## Active output enforcement
 This vault is for learning, not decorative hoarding.
@@ -93,7 +104,7 @@ If the user is overloaded, keep it short but do not skip it by default.
 1. Use `scripts/init-project` to add a sanitized `AGENTS.md` to each repo.
 2. Keep each project's durable memory in `kb/wiki/projects/<project>.md`.
 3. Start repo sessions from local docs plus the matching project note.
-4. If available, use home-level skills such as `zot-vault-search`, `zot-vault-ingest`, and `zot-vault-review`.
+4. If available, use home-level skills such as `zot-vault-search`, `zot-vault-ingest`, `zot-vault-review`, and `zot-vault-wiki`.
 
 ## Editing rules
 - Do not silently delete raw sources.

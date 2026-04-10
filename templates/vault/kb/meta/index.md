@@ -22,6 +22,7 @@ aliases: [Knowledge Base Index]
 - Long-form syntheses: `kb/wiki/syntheses/`
 - Human notes: `kb/human/`
 - Active-output drills: `kb/human/active-output/`
+- Feedback inbox: `kb/human/feedback/open/`
 - Review prompts: `kb/meta/review.md`
 
 ## Operating rules
@@ -33,8 +34,10 @@ aliases: [Knowledge Base Index]
 6. Each active repo should have one matching note under `kb/wiki/projects/`.
 7. Use `scripts/kb-lint` for maintenance and `scripts/kb-smoke-test` after wiring changes.
 8. Use Obsidian as the shared layer for learning, project work, and permanent agent context.
+9. Keep durable corrections in `kb/human/feedback/**`, not scattered across chat history.
 
 ## First steps
 - Create the matching project note with `scripts/init-project /path/to/project --vault <vault>`.
 - Capture new material with `scripts/kb-capture`.
+- Capture durable corrections with `scripts/kb-feedback`.
 - Log meaningful ingests or reorganizations with `scripts/kb-log`.

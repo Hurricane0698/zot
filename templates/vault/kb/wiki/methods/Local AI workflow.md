@@ -30,9 +30,10 @@ Obsidian is the shared layer for:
 ## Maintenance loop
 1. Run `scripts/kb-lint` to catch structural issues.
 2. Run `scripts/kb-smoke-test` after wiring or toolchain changes.
-3. Consolidate duplicate ideas and weakly linked notes during review.
-4. If available, let home-level skills such as `zot-vault-search`, `zot-vault-ingest`, and `zot-vault-review` enrich the context automatically.
-5. Use `zoxide` (`z <name>`) to move between active repos quickly.
+3. Triage `kb/human/feedback/open/**` before large restructures.
+4. Consolidate duplicate ideas and weakly linked notes during review.
+5. If available, let home-level skills such as `zot-vault-search`, `zot-vault-ingest`, `zot-vault-review`, and `zot-vault-wiki` enrich the context automatically.
+6. Use `zoxide` (`z <name>`) to move between active repos quickly.
 
 ## Trellis ideas worth keeping
 - explicit context before work

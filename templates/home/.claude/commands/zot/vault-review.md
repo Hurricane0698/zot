@@ -12,3 +12,6 @@ Workflow:
 7. Use `"$ZOT_VAULT/scripts/kb-smoke-test"` when search or CLI wiring looks suspicious.
 
 If `$ARGUMENTS` narrows the scope, use it as the review focus.
+
+Guardrail:
+- Keep this command review-shaped. If the work becomes a broad compile pass, multi-step reorganization, or a feedback-resolution sprint, switch to `vault-wiki`.

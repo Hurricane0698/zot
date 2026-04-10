@@ -172,6 +172,7 @@ $ZOT_WORKFLOW_HOME/scripts/start-session --json --vault "$HOME/zot-vault"
 - `zot-vault-search`
 - `zot-vault-ingest`
 - `zot-vault-review`
+- `zot-vault-wiki`
 - `.agents/skills/qmd`
 
 这些模板会在 `./setup.sh` 时非破坏性安装；如果你之后想重新同步，也可以手动运行：
@@ -180,11 +181,17 @@ $ZOT_WORKFLOW_HOME/scripts/start-session --json --vault "$HOME/zot-vault"
 ./scripts/install-home-skills
 ```
 
+分工建议：
+- `zot-vault-search`：只负责检索
+- `zot-vault-ingest`：处理单个来源或一个小批次的吸收整理
+- `zot-vault-review`：负责周期性回顾、维护、复盘
+- `zot-vault-wiki`：负责跨上述边界的多步 compiled-wiki 编排
+
 如果你用 Claude Code，对应的工作流也会作为 slash command 模板安装到 `~/.claude/commands/zot/`。
 
 ## Vault 工作流
 
-把 vault 当成一个持续编译的小型 wiki，而不是资料堆放处：
+把 vault 当成一个持续编译的小型 wiki：
 
 1. 先把原始材料放进 `kb/raw/**`。
 2. 再把有价值的部分整理为 `kb/wiki/**` 下的长期笔记。

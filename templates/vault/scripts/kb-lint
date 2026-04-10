@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import json
 import re
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -7,13 +8,37 @@ REPO = Path(__file__).resolve().parent.parent
 KB = REPO / "kb"
 WIKI = KB / "wiki"
 META = KB / "meta"
+FEEDBACK = KB / "human" / "feedback"
 
 WIKILINK_RE = re.compile(r"\[\[([^\]|#]+)")
 FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n?", re.S)
+FENCED_CODE_RE = re.compile(r"```[\s\S]*?```", re.M)
+FEEDBACK_REQUIRED_FIELDS = {"type", "title", "target", "severity", "status", "created"}
+VALID_FEEDBACK_STATUSES = {"open", "resolved"}
+VALID_FEEDBACK_SEVERITIES = {"info", "suggest", "warn", "error"}
 
 
 def note_name(path: Path) -> str:
     return path.stem
+
+
+def parse_scalar(value: str) -> str:
+    value = value.strip()
+    if len(value) >= 2 and value[0] == value[-1] == "'":
+        return value[1:-1].replace("''", "'")
+    if len(value) >= 2 and value[0] == value[-1] == '"':
+        try:
+            return json.loads(value)
+        except json.JSONDecodeError:
+            return value[1:-1].replace('\\"', '"').replace("\\\\", "\\")
+    return value
+
+
+def normalize_note_lookup_name(value: str) -> str:
+    name = Path(value).name.strip()
+    if name.lower().endswith(".md"):
+        return name[:-3]
+    return name
 
 
 def extract_aliases(text: str) -> set[str]:
@@ -33,11 +58,11 @@ def extract_aliases(text: str) -> set[str]:
 
         value = stripped.partition(":")[2].strip()
         if value.startswith("[") and value.endswith("]"):
-            items = [item.strip().strip("'\"") for item in value[1:-1].split(",")]
+            items = [parse_scalar(item.strip()) for item in value[1:-1].split(",")]
             aliases.update(item for item in items if item)
             return aliases
         if value:
-            aliases.add(value.strip("'\""))
+            aliases.add(parse_scalar(value))
             return aliases
 
         i += 1
@@ -45,13 +70,47 @@ def extract_aliases(text: str) -> set[str]:
             child = lines[i].strip()
             if not child.startswith("- "):
                 break
-            alias = child[2:].strip().strip("'\"")
+            alias = parse_scalar(child[2:].strip())
             if alias:
                 aliases.add(alias)
             i += 1
         return aliases
 
     return aliases
+
+
+def parse_frontmatter(text: str) -> dict | None:
+    match = FRONTMATTER_RE.match(text)
+    if not match:
+        return None
+
+    result: dict = {}
+    for line in match.group(1).splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or ":" not in line:
+            continue
+        key, _, rest = line.partition(":")
+        value = rest.strip()
+        if value.startswith("[") and value.endswith("]"):
+            items = [parse_scalar(item.strip()) for item in value[1:-1].split(",")]
+            result[key.strip()] = [item for item in items if item]
+        else:
+            result[key.strip()] = parse_scalar(value)
+    return result
+
+
+def normalize_target(target: str) -> str:
+    cleaned = target.strip()
+    if cleaned.startswith("[[") and cleaned.endswith("]]"):
+        cleaned = cleaned[2:-2]
+    cleaned = cleaned.split("|", 1)[0]
+    cleaned = cleaned.split("#", 1)[0]
+    cleaned = cleaned.strip()
+    return normalize_note_lookup_name(cleaned) if cleaned else ""
+
+
+def strip_fenced_code_blocks(text: str) -> str:
+    return FENCED_CODE_RE.sub("", text)
 
 
 def main() -> int:
@@ -95,11 +154,12 @@ def main() -> int:
         if note in notes and "## Sources" not in text and "/maps/" not in rel_posix:
             missing_sources.append(str(rel))
 
-        for raw_target in WIKILINK_RE.findall(text):
+        visible_text = strip_fenced_code_blocks(text)
+        for raw_target in WIKILINK_RE.findall(visible_text):
             target = raw_target.strip()
             if not target:
                 continue
-            target_name = Path(target).name
+            target_name = normalize_note_lookup_name(target)
             canonical_target = alias_to_note.get(target_name, target_name)
             if canonical_target in names:
                 inbound[canonical_target] += 1
@@ -111,6 +171,38 @@ def main() -> int:
         for p in notes
         if inbound[note_name(p)] == 0 and "/maps/" not in str(p).replace("\\", "/")
     )
+
+    feedback_shape_issues = []
+    feedback_target_issues = []
+    feedback_files = sorted(p for p in FEEDBACK.rglob("*.md") if p.name != ".gitkeep") if FEEDBACK.exists() else []
+    for path in feedback_files:
+        rel = str(path.relative_to(REPO))
+        text = path.read_text(encoding="utf-8")
+        frontmatter = parse_frontmatter(text)
+        if frontmatter is None:
+            feedback_shape_issues.append(f"{rel} - missing frontmatter")
+            continue
+
+        missing = sorted(FEEDBACK_REQUIRED_FIELDS - set(frontmatter))
+        if missing:
+            feedback_shape_issues.append(f"{rel} - missing fields: {', '.join(missing)}")
+            continue
+
+        if frontmatter.get("type") != "feedback":
+            feedback_shape_issues.append(f"{rel} - type must be feedback")
+        if frontmatter.get("severity") not in VALID_FEEDBACK_SEVERITIES:
+            feedback_shape_issues.append(f"{rel} - invalid severity: {frontmatter.get('severity')}")
+
+        expected_status = "resolved" if "resolved" in path.parts else "open"
+        if frontmatter.get("status") not in VALID_FEEDBACK_STATUSES:
+            feedback_shape_issues.append(f"{rel} - invalid status: {frontmatter.get('status')}")
+        elif frontmatter.get("status") != expected_status:
+            feedback_shape_issues.append(f"{rel} - status should be {expected_status}")
+
+        target_name = normalize_target(str(frontmatter.get("target", "")))
+        canonical_target = alias_to_note.get(target_name, target_name)
+        if not target_name or canonical_target not in vault_note_names:
+            feedback_target_issues.append(f"{rel} - missing target: {frontmatter.get('target')}")
 
     print(f"Total wiki notes: {len(notes)}")
     print(f"Duplicate note names: {len(duplicates)}")
@@ -134,6 +226,14 @@ def main() -> int:
     for note, targets in sorted(broken_links.items()):
         for target in sorted(targets):
             print(f"  BROKEN?: {note} -> {target}")
+
+    print(f"Feedback shape issues: {len(feedback_shape_issues)}")
+    for item in feedback_shape_issues:
+        print(f"  FEEDBACK SHAPE: {item}")
+
+    print(f"Feedback target issues: {len(feedback_target_issues)}")
+    for item in feedback_target_issues:
+        print(f"  FEEDBACK TARGET: {item}")
     return 0
 
 

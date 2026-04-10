@@ -1,0 +1,110 @@
+{
+  "name": "zot-vault-wiki",
+  "version": "0.1.0",
+  "vault_resolution": {
+    "env": [
+      "ZOT_VAULT",
+      "OMEGA_VAULT"
+    ]
+  },
+  "paths": {
+    "agents_file": "AGENTS.md",
+    "raw_root": "kb/raw",
+    "wiki_root": "kb/wiki",
+    "meta_index": "kb/meta/index.md",
+    "meta_log": "kb/meta/log.md",
+    "meta_review": "kb/meta/review.md",
+    "active_output_root": "kb/human/active-output",
+    "feedback_open_root": "kb/human/feedback/open",
+    "feedback_resolved_root": "kb/human/feedback/resolved",
+    "feedback_template": "kb/templates/feedback-note.md"
+  },
+  "operations": {
+    "compile": {
+      "references": [
+        "references/schema.md",
+        "references/compile.md"
+      ],
+      "updates": [
+        "kb/wiki/**",
+        "kb/meta/index.md",
+        "kb/meta/log.md"
+      ]
+    },
+    "ingest": {
+      "references": [
+        "references/schema.md",
+        "references/ingest.md"
+      ],
+      "updates": [
+        "kb/raw/**",
+        "kb/wiki/**",
+        "kb/meta/index.md",
+        "kb/meta/log.md",
+        "kb/human/active-output/**"
+      ]
+    },
+    "query": {
+      "references": [
+        "references/schema.md",
+        "references/query.md"
+      ],
+      "updates": [
+        "kb/wiki/queries/**",
+        "kb/wiki/syntheses/**",
+        "kb/meta/index.md",
+        "kb/meta/log.md"
+      ]
+    },
+    "lint": {
+      "references": [
+        "references/schema.md",
+        "references/lint.md"
+      ],
+      "commands": [
+        "\"$ZOT_VAULT/scripts/kb-lint\"",
+        "\"$ZOT_VAULT/scripts/kb-smoke-test\""
+      ]
+    },
+    "feedback": {
+      "references": [
+        "references/schema.md",
+        "references/feedback.md"
+      ],
+      "updates": [
+        "kb/human/feedback/open/**",
+        "kb/human/feedback/resolved/**",
+        "kb/wiki/**",
+        "kb/meta/log.md",
+        "kb/meta/review.md"
+      ]
+    }
+  },
+  "conventions": {
+    "raw_is_immutable": true,
+    "update_index_on_new_durable_note": true,
+    "leave_active_output_after_meaningful_ingest_or_synthesis": true,
+    "refresh_qmd_after_new_notes": true,
+    "durable_note_requires_sources_section": true
+  },
+  "feedback": {
+    "required_fields": [
+      "type",
+      "title",
+      "target",
+      "severity",
+      "status",
+      "created"
+    ],
+    "valid_severities": [
+      "info",
+      "suggest",
+      "warn",
+      "error"
+    ],
+    "valid_statuses": [
+      "open",
+      "resolved"
+    ]
+  }
+}

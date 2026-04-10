@@ -10,3 +10,6 @@ Workflow:
 5. If note files were just added and `qmd` is installed, refresh the vault-local collection and search again.
 6. Read only the highest-signal notes.
 7. Reply with a concise synthesis and cite the note paths you used.
+
+Guardrail:
+- Keep this command search-only. If the work now requires creating notes, restructuring the vault, or resolving feedback, switch to `vault-ingest`, `vault-review`, or `vault-wiki`.

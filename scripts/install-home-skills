@@ -49,13 +49,24 @@ target_home="$(cd -- "$target_home" && pwd -P)"
 copy_missing() {
   local src="$1"
   local dst="$2"
+  local overwrite="${3:-false}"
   (
     cd "$src"
     while IFS= read -r -d '' dir; do
+      case "$dir" in
+        */__pycache__|./__pycache__)
+          continue
+          ;;
+      esac
       mkdir -p "$dst/$dir"
     done < <(find . -type d -print0)
     while IFS= read -r -d '' file; do
-      if [[ ! -e "$dst/$file" ]]; then
+      case "$file" in
+        *.pyc|*.pyo|*/__pycache__/*)
+          continue
+          ;;
+      esac
+      if $overwrite || [[ ! -e "$dst/$file" ]]; then
         cp -p "$file" "$dst/$file"
       fi
     done < <(find . -type f -print0)
@@ -63,7 +74,7 @@ copy_missing() {
 }
 
 if $force; then
-  cp -R "$template_home"/. "$target_home"/
+  copy_missing "$template_home" "$target_home" true
 else
   copy_missing "$template_home" "$target_home"
 fi

@@ -61,6 +61,7 @@ skill_dirs=(
   "$HOME/.codex/skills/zot-vault-search"
   "$HOME/.codex/skills/zot-vault-ingest"
   "$HOME/.codex/skills/zot-vault-review"
+  "$HOME/.codex/skills/zot-vault-wiki"
   "$HOME/.agents/skills/qmd"
 )
 
