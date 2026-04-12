@@ -4,7 +4,11 @@ A terminal setup for people who want sharper tools and smarter AI context — wi
 
 `zot` pairs a modern terminal environment with an Obsidian-based memory layer, so your shell feels fast and your agents pick up where they left off.
 
-**中文文档：[`README_CN.md`](README_CN.md)**
+<p align="center">
+  <strong>English</strong>
+  &nbsp;·&nbsp;
+  <a href="README_CN.md"><strong>中文</strong></a>
+</p>
 
 <p align="center">
   <a href="https://github.com/Hurricane0698/zot/actions/workflows/ci.yml">
@@ -53,6 +57,15 @@ cd zot
 
 Open a new shell when it finishes.
 
+## Install Steps
+
+1. Clone the repo and run the installer.
+2. If you want to preview changes first, run `./setup.sh --dry-run`.
+3. Choose the optional components you want.
+4. Open a new shell after setup finishes.
+5. If the shell did not switch cleanly, run `$HOME/.local/bin/zot-doctor shell`.
+6. Then initialize your vault, initialize project context, and run `project-context` inside the project.
+
 ## What You Get
 
 | Area | Included |
@@ -67,6 +80,28 @@ Open a new shell when it finishes.
 1. Install once on a new machine.
 2. Create a vault for durable notes and project memory.
 3. Initialize any repo so local rules and long-term context stay attached.
+
+## Common Questions
+
+**Q: I already have a setup I have used for two years. Why would I switch?**
+
+zot is not trying to replace an existing setup. It is a zero-friction starting point for people who want a clean modern stack from scratch, or who want to cherry-pick current best practices.
+
+**Q: How is zot different from chezmoi / oh-my-zsh / dotfiles?**
+
+chezmoi is for syncing config. oh-my-zsh is for zsh plugins, and it is quite heavy for many people. zot is an opinionated full stack for the terminal: terminal emulator, shell, prompt, multiplexer, AI CLIs, and a set of modern CLI tools installed in one run.
+
+**Q: I do not want Obsidian / Ghostty / zsh / Starship / Zellij. Can I skip them?**
+
+Yes. The installer is interactive and lets you choose at each step. If you already use tmux, zot will not install zellij, and `mux` gives you one launch command either way. Flags such as `--no-obsidian` and `--no-node` are also available.
+
+**Q: Will this overwrite my existing setup?**
+
+No. The installer confirms each step interactively, and `--dry-run` lets you inspect what would happen before making changes.
+
+**Q: Which systems are supported?**
+
+macOS, Debian/Ubuntu, and Windows via WSL. On native Windows, zot tries to install WSL first and then guides you into the WSL-based CLI workflow, which is the better path for compatibility and performance with most CLI tools.
 
 ## Learn More
 
@@ -87,3 +122,7 @@ Open a new shell when it finishes.
 ## License
 
 [MIT](LICENSE)
+
+## Related Links
+
+- [linux.do discussion thread](https://linux.do/t/topic/1926161)

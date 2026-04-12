@@ -4,7 +4,11 @@
 
 `zot` 把现代终端环境和基于 Obsidian 的长期记忆层放在一起，让你日常开发更顺手，也让 agent 每次开工不用从零开始。
 
-**English: [`README.md`](README.md)**
+<p align="center">
+  <a href="README.md"><strong>English</strong></a>
+  &nbsp;·&nbsp;
+  <strong>中文</strong>
+</p>
 
 <p align="center">
   <a href="https://github.com/Hurricane0698/zot/actions/workflows/ci.yml">
@@ -53,6 +57,15 @@ cd zot
 
 安装完成后，开一个新 shell 就可以开始用。
 
+## 安装步骤
+
+1. 拉下仓库并运行安装脚本。
+2. 如果想先确认会改什么，先运行 `./setup.sh --dry-run`。
+3. 按需选择要安装的组件。
+4. 安装完成后打开一个新 shell。
+5. 如果 shell 看起来没切过来，运行 `$HOME/.local/bin/zot-doctor shell`。
+6. 然后初始化 vault、初始化项目上下文，并在项目里运行 `project-context`。
+
 
 ## 你会得到什么
 
@@ -68,6 +81,28 @@ cd zot
 1. 在新机器上装一次。
 2. 建一个 vault，存长期笔记和项目记忆。
 3. 给任意仓库初始化，让本地规则和长期上下文保持关联。
+
+## 常见疑问
+
+**Q: 我自己的配置用了两年了，凭什么换成你的？**
+
+zot的目标不是替换配置，而是给想从零开始或想看看现代化最佳实践的人一个零摩擦起点。已有配置的可以 cherry-pick 需要的部分。
+
+**Q: zot和 chezmoi / oh-my-zsh / dotfiles 有什么区别？**
+
+chezmoi管配置同步，oh-my-zsh管zsh 插件（而且很重，装了一堆用不到的东西），zot是一整套 opinionated 的现代终端环境：终端模拟器+shell+提示符+多开器+AI CLI+十几个现代 CLI 工具，一条命令装完。
+
+**Q: 我不想装 obsidian / ghostty / zsh / starship / zellij，能跳过吗？**
+
+都可以跳过。安装脚本是交互式的，每一步都让你选择。已有 tmux 就不会装 zellij，用 `mux` 统一启动。`--no-obsidian`、`--no-node` 等 flag 也都有。
+
+**Q: 会不会覆盖我现有的配置？**
+
+不会。交互式确认每一步，支持 `--dry-run` 先看看会做什么。
+
+**Q: 支持什么系统？**
+
+macOS、Debian/Ubuntu、Windows（WSL）。如果是原生 Windows，我们会尝试为你安装 WSL 并引导你使用 WSL 来运行 CLI 工具。这是比 Windows shell 更好的选择，因为大多数 CLI 工具在 WSL 里有更好的兼容性和性能。
 
 ## 继续了解
 
@@ -88,3 +123,7 @@ cd zot
 ## 许可证
 
 [MIT](LICENSE)
+
+## 友情链接
+
+- [linux.do 讨论帖](https://linux.do/t/topic/1926161)

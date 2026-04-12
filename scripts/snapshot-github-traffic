@@ -1,0 +1,163 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'USAGE'
+Usage: scripts/snapshot-github-traffic [--repo owner/name] [--out-dir path] [--date YYYY-MM-DD]
+
+Fetch a daily GitHub traffic snapshot and persist the raw API responses plus a merged snapshot.json.
+
+Defaults:
+- --repo    current gh repo from this checkout
+- --out-dir .cache/github-traffic
+- --date    current UTC date
+USAGE
+}
+
+error() {
+  echo "$*" >&2
+  exit 1
+}
+
+require_cmd() {
+  command -v "$1" >/dev/null 2>&1 || error "Missing required command: $1"
+}
+
+repo=""
+snapshot_date=""
+out_dir=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --repo)
+      shift
+      [[ $# -gt 0 ]] || error "Missing value for --repo"
+      repo="$1"
+      ;;
+    --out-dir)
+      shift
+      [[ $# -gt 0 ]] || error "Missing value for --out-dir"
+      out_dir="$1"
+      ;;
+    --date)
+      shift
+      [[ $# -gt 0 ]] || error "Missing value for --date"
+      snapshot_date="$1"
+      ;;
+    --help | -h)
+      usage
+      exit 0
+      ;;
+    *)
+      error "Unknown argument: $1"
+      ;;
+  esac
+  shift
+done
+
+require_cmd gh
+require_cmd python3
+gh auth status >/dev/null 2>&1 || error "gh is not authenticated"
+
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+repo_root="$(cd -- "$script_dir/.." && pwd)"
+
+if [[ -z "$repo" ]]; then
+  repo="$(gh repo view --json nameWithOwner --jq .nameWithOwner)"
+fi
+
+if [[ -z "$snapshot_date" ]]; then
+  snapshot_date="$(date -u +%F)"
+fi
+
+[[ "$snapshot_date" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || error "Invalid --date format: $snapshot_date"
+
+if [[ -z "$out_dir" ]]; then
+  out_dir="$repo_root/.cache/github-traffic"
+fi
+
+fetch_time_utc="$(date -u +%FT%TZ)"
+repo_slug="${repo//\//__}"
+target_dir="$out_dir/$repo_slug/$snapshot_date"
+mkdir -p "$target_dir"
+
+fetch_json() {
+  local output_path="$1"
+  shift
+  gh "$@" >"$output_path"
+}
+
+repo_meta_path="$target_dir/repo.json"
+views_path="$target_dir/views.json"
+clones_path="$target_dir/clones.json"
+referrers_path="$target_dir/referrers.json"
+paths_path="$target_dir/paths.json"
+snapshot_path="$target_dir/snapshot.json"
+
+fetch_json "$repo_meta_path" repo view "$repo" --json nameWithOwner,description,url,defaultBranchRef,stargazerCount,forkCount,createdAt,pushedAt,isPrivate
+fetch_json "$views_path" api "repos/$repo/traffic/views"
+fetch_json "$clones_path" api "repos/$repo/traffic/clones"
+fetch_json "$referrers_path" api "repos/$repo/traffic/popular/referrers"
+fetch_json "$paths_path" api "repos/$repo/traffic/popular/paths"
+
+python3 - "$repo" "$snapshot_date" "$fetch_time_utc" "$repo_meta_path" "$views_path" "$clones_path" "$referrers_path" "$paths_path" "$snapshot_path" <<'PY'
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+repo = sys.argv[1]
+snapshot_date = sys.argv[2]
+fetch_time_utc = sys.argv[3]
+repo_meta_path = Path(sys.argv[4])
+views_path = Path(sys.argv[5])
+clones_path = Path(sys.argv[6])
+referrers_path = Path(sys.argv[7])
+paths_path = Path(sys.argv[8])
+snapshot_path = Path(sys.argv[9])
+
+
+def load(path: Path):
+    with path.open("r", encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+repo_meta = load(repo_meta_path)
+views = load(views_path)
+clones = load(clones_path)
+referrers = load(referrers_path)
+paths = load(paths_path)
+
+snapshot = {
+    "repo": repo,
+    "snapshot_date_utc": snapshot_date,
+    "fetched_at_utc": fetch_time_utc,
+    "repo_meta": repo_meta,
+    "traffic": {
+        "views": views,
+        "clones": clones,
+        "referrers": referrers,
+        "popular_paths": paths,
+    },
+    "summary": {
+        "views_count": views["count"],
+        "views_uniques": views["uniques"],
+        "clones_count": clones["count"],
+        "clones_uniques": clones["uniques"],
+        "star_count": repo_meta["stargazerCount"],
+        "fork_count": repo_meta["forkCount"],
+        "top_referrer": referrers[0]["referrer"] if referrers else None,
+        "top_referrer_count": referrers[0]["count"] if referrers else 0,
+        "top_path": paths[0]["path"] if paths else None,
+        "top_path_count": paths[0]["count"] if paths else 0,
+    },
+}
+
+snapshot_path.write_text(json.dumps(snapshot, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+PY
+
+echo "[OK] Repo: $repo"
+echo "[OK] Snapshot date (UTC): $snapshot_date"
+echo "[OK] Output directory: $target_dir"
+echo "[OK] Wrote merged snapshot: $snapshot_path"
