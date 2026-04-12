@@ -6,9 +6,15 @@
 
 **English: [`README.md`](README.md)**
 
-[![CI](https://github.com/Hurricane0698/zot/actions/workflows/ci.yml/badge.svg)](https://github.com/Hurricane0698/zot/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-22c55e.svg)](LICENSE)
-![Platforms](https://img.shields.io/badge/platform-macOS%20%7C%20Debian%20%7C%20WSL-2563eb.svg)
+<p align="center">
+  <a href="https://github.com/Hurricane0698/zot/actions/workflows/ci.yml">
+    <img src="https://github.com/Hurricane0698/zot/actions/workflows/ci.yml/badge.svg" alt="CI">
+  </a>
+  <a href="LICENSE">
+    <img src="https://img.shields.io/badge/license-MIT-22c55e.svg" alt="License: MIT">
+  </a>
+  <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Debian%20%7C%20WSL-2563eb.svg" alt="Platforms">
+</p>
 
 <p align="center">
   <img src="assets/ghostty.png" width="80" alt="Ghostty">

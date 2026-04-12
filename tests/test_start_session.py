@@ -4,7 +4,6 @@ import tempfile
 import unittest
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 INIT_PROJECT = ROOT / "scripts" / "init-project"
 START_SESSION = ROOT / "scripts" / "start-session"

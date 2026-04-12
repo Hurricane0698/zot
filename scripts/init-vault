@@ -45,7 +45,7 @@ copy_missing() {
     cd "$src"
     while IFS= read -r -d '' dir; do
       case "$dir" in
-        */__pycache__|./__pycache__)
+        */__pycache__)
           continue
           ;;
       esac

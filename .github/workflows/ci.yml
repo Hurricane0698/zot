@@ -4,16 +4,19 @@ on:
   push:
   pull_request:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
@@ -37,7 +40,7 @@ jobs:
             done
           )
           if ((${#shell_files[@]})); then
-            shellcheck "${shell_files[@]}"
+            shellcheck -x "${shell_files[@]}"
           fi
 
       - name: shfmt

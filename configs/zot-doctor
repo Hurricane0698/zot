@@ -25,6 +25,7 @@ yes_no() {
 
 detect_os_label() {
   if [[ -r /etc/os-release ]]; then
+    # shellcheck source=/etc/os-release
     . /etc/os-release
     if [[ -n "${PRETTY_NAME:-}" ]]; then
       printf '%s\n' "$PRETTY_NAME"
@@ -113,7 +114,7 @@ info_line "SHELL env" "${shell_env:-unset}"
 info_line "account login shell" "${account_shell:-unknown}"
 info_line "zsh path" "${zsh_path:-missing}"
 info_line "starship path" "${starship_path:-missing}"
-info_line "~/.zshrc looks like zot" "$(yes_no "$has_zot_zshrc")"
+info_line "$HOME/.zshrc looks like zot" "$(yes_no "$has_zot_zshrc")"
 info_line "zot vars load in zsh" "$(yes_no "$zot_vars_loaded")"
 info_line "mux available in zsh" "$(yes_no "$mux_loaded")"
 info_line "project-context in zsh" "$(yes_no "$project_context_loaded")"
@@ -141,9 +142,9 @@ elif [[ "${shell_env##*/}" != "zsh" && "$parent_process" != *zsh* ]]; then
   advice_2="If it still comes back unchanged, check whether your terminal profile is forcing a custom command instead of the account login shell."
   advice_3="You can test the new shell immediately with: exec zsh"
 elif [[ "$has_zot_zshrc" != "true" ]]; then
-  issue="~/.zshrc does not look like the zot-managed config."
-  advice_1="Rerun ./setup.sh so it can redeploy ~/.zshrc."
-  advice_2="If you had an older ~/.zshrc, compare it with the timestamped ~/.zshrc.bak.* backup."
+  issue="$HOME/.zshrc does not look like the zot-managed config."
+  advice_1="Rerun ./setup.sh so it can redeploy $HOME/.zshrc."
+  advice_2="If you had an older $HOME/.zshrc, compare it with the timestamped $HOME/.zshrc.bak.* backup."
 elif [[ -n "$workflow_home" && "$workflow_home_exists" != "true" ]]; then
   issue="Your zsh config points to a zot repo path that no longer exists."
   advice_1="Do not move or delete the zot repo after setup, or rerun ./setup.sh from its new location."

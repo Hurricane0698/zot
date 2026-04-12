@@ -159,7 +159,8 @@ section() {
 backup_file() {
   local path="$1"
   if [[ -e "$path" || -L "$path" ]]; then
-    local backup="$path.bak.$(date +%Y%m%d-%H%M%S)"
+    local backup=""
+    backup="$path.bak.$(date +%Y%m%d-%H%M%S)"
     run_cmd cp -R "$path" "$backup"
     warn "Backed up $path -> $backup"
   fi
@@ -421,8 +422,9 @@ ensure_homebrew() {
   if has_cmd brew; then
     success "Homebrew already installed"
   else
+    local install_url="https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh"
     info "Installing Homebrew..."
-    run_shell 'NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
+    run_shell "NONINTERACTIVE=1 /bin/bash -c \"\$(curl -fsSL $install_url)\""
   fi
 
   if [[ -x /opt/homebrew/bin/brew ]]; then

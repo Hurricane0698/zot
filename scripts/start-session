@@ -325,7 +325,7 @@ for skill_dir in "${skill_dirs[@]}"; do
   fi
 done
 if [[ "$found_skill" == false ]]; then
-  printf 'No known zot-compatible home-level Obsidian skills detected under $HOME.\n'
+  printf 'No known zot-compatible home-level Obsidian skills detected under %s.\n' "$HOME"
 fi
 
 show_file "AGENTS" "AGENTS.md" 180
