@@ -103,8 +103,9 @@ If the user is overloaded, keep it short but do not skip it by default.
 ## Project workflow
 1. Use `scripts/init-project` to add a sanitized `AGENTS.md` to each repo.
 2. Keep each project's durable memory in `kb/wiki/projects/<project>.md`.
-3. Start repo sessions from local docs plus the matching project note.
-4. If available, use home-level skills such as `zot-vault-search`, `zot-vault-ingest`, `zot-vault-review`, and `zot-vault-wiki`.
+3. Keep each project's standards pack in `kb/wiki/projects/<project>.standards.md`.
+4. Start repo sessions from local docs plus the matching project note and standards note.
+5. If available, use home-level skills such as `zot-vault-search`, `zot-vault-ingest`, `zot-vault-review`, and `zot-vault-wiki`.
 
 ## Editing rules
 - Do not silently delete raw sources.

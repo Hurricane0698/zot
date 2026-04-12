@@ -9,6 +9,7 @@ Prints a session-start context bundle using:
 - AGENTS.md
 - README.md
 - matching Obsidian project note when available
+- matching Obsidian standards pack when available
 - recent git activity
 - detected home-level Obsidian skills
 
@@ -48,8 +49,11 @@ cd "$repo_root"
 project_name="$(basename "$repo_root")"
 project_slug="$(printf '%s' "$project_name" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//')"
 project_note_rel="kb/wiki/projects/${project_slug}.md"
+project_standards_rel="kb/wiki/projects/${project_slug}.standards.md"
 project_note_abs=""
+project_standards_abs=""
 [[ -n "$vault_path" ]] && project_note_abs="$vault_path/$project_note_rel"
+[[ -n "$vault_path" ]] && project_standards_abs="$vault_path/$project_standards_rel"
 
 local_context_candidates=(
   "AGENTS|AGENTS.md|180"
@@ -78,7 +82,7 @@ show_file() {
 if [[ "$output_format" == "json" ]]; then
   LOCAL_CONTEXT_CANDIDATES="$(printf '%s\n' "${local_context_candidates[@]}")" \
   HOME_SKILL_DIRS="$(printf '%s\n' "${skill_dirs[@]}")" \
-  python3 - "$repo_root" "$workflow_root" "$project_name" "$project_slug" "$vault_path" "$project_note_rel" "$project_note_abs" <<'PY'
+  python3 - "$repo_root" "$workflow_root" "$project_name" "$project_slug" "$vault_path" "$project_note_rel" "$project_note_abs" "$project_standards_rel" "$project_standards_abs" <<'PY'
 from __future__ import annotations
 
 import json
@@ -94,6 +98,8 @@ project_slug = sys.argv[4]
 vault_path = sys.argv[5] or None
 project_note_rel = sys.argv[6]
 project_note_abs = Path(sys.argv[7]) if sys.argv[7] else None
+project_standards_rel = sys.argv[8]
+project_standards_abs = Path(sys.argv[9]) if sys.argv[9] else None
 
 candidate_specs: list[tuple[str, str, int]] = []
 for line in os.environ.get("LOCAL_CONTEXT_CANDIDATES", "").splitlines():
@@ -121,6 +127,50 @@ def read_preview(path: Path, max_lines: int) -> str | None:
     with path.open("r", encoding="utf-8", errors="replace") as handle:
         lines = handle.readlines()[:max_lines]
     return "".join(lines)
+
+
+def parse_scalar(value: str):
+    value = value.strip()
+    if len(value) >= 2 and value[0] == value[-1] == "'":
+        return value[1:-1].replace("''", "'")
+    if len(value) >= 2 and value[0] == value[-1] == '"':
+        try:
+            return json.loads(value)
+        except json.JSONDecodeError:
+            return value[1:-1].replace('\\"', '"').replace("\\\\", "\\")
+    return value
+
+
+def parse_frontmatter(path: Path | None) -> dict:
+    if path is None or not path.is_file():
+        return {}
+
+    text = path.read_text(encoding="utf-8", errors="replace")
+    if not text.startswith("---\n"):
+        return {}
+
+    end = text.find("\n---\n", 4)
+    if end == -1:
+        return {}
+
+    frontmatter = text[4:end]
+    data: dict[str, object] = {}
+    for line in frontmatter.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or ":" not in line:
+            continue
+        key, _, rest = line.partition(":")
+        value = rest.strip()
+        if value.startswith("[") and value.endswith("]"):
+            items = [parse_scalar(item.strip()) for item in value[1:-1].split(",")]
+            data[key.strip()] = [item for item in items if item]
+        else:
+            data[key.strip()] = parse_scalar(value)
+    return data
+
+
+def select_fields(values: dict, keys: list[str]) -> dict:
+    return {key: values[key] for key in keys if key in values and values[key] not in ("", [], None)}
 
 git_code, _ = run(["git", "rev-parse", "--is-inside-work-tree"])
 inside_git = git_code == 0
@@ -154,17 +204,60 @@ for label, rel_path, max_lines in candidate_specs:
 
 detected_skills = [{"path": path} for path in skill_dirs if Path(path).exists()]
 
+project_note_frontmatter = parse_frontmatter(project_note_abs)
+project_standards_frontmatter = parse_frontmatter(project_standards_abs)
+
 project_note = {
     "relative_path": project_note_rel,
     "path": str(project_note_abs) if project_note_abs else None,
     "exists": bool(project_note_abs and project_note_abs.is_file()),
     "max_lines": 180,
     "content": read_preview(project_note_abs, 180) if project_note_abs else None,
+    "frontmatter": project_note_frontmatter,
     "create_command": None,
 }
 if not project_note["exists"]:
     target_vault = vault_path or "/path/to/vault"
     project_note["create_command"] = f"{workflow_root}/scripts/init-project . --vault {target_vault}"
+
+project_standards = {
+    "relative_path": project_standards_rel,
+    "path": str(project_standards_abs) if project_standards_abs else None,
+    "exists": bool(project_standards_abs and project_standards_abs.is_file()),
+    "max_lines": 180,
+    "content": read_preview(project_standards_abs, 180) if project_standards_abs else None,
+    "frontmatter": project_standards_frontmatter,
+    "create_command": None,
+}
+if not project_standards["exists"]:
+    target_vault = vault_path or "/path/to/vault"
+    project_standards["create_command"] = f"{workflow_root}/scripts/init-project . --vault {target_vault}"
+
+project_fields = select_fields(
+    project_note_frontmatter,
+    ["status", "owners", "milestone", "project_slug", "repo_root", "standards_note"],
+)
+standards_fields = select_fields(
+    project_standards_frontmatter,
+    [
+        "tech_stack",
+        "architectural_style",
+        "code_style",
+        "testing_policy",
+        "security_constraints",
+        "performance_budget",
+        "definition_of_done",
+        "risk_register",
+        "do_not_do",
+    ],
+)
+
+evidence = {
+    "repo_rules": ["AGENTS.md"] if (repo_root / "AGENTS.md").is_file() else [],
+    "repo_docs": [item["path"] for item in local_context_files if item["label"].startswith("README") and item["exists"]],
+    "durable_memory": [project_note_rel] if project_note["exists"] else [],
+    "standards_pack": [project_standards_rel] if project_standards["exists"] else [],
+}
 
 payload = {
     "repo_root": str(repo_root),
@@ -178,11 +271,24 @@ payload = {
     "local_context_files": local_context_files,
     "detected_home_skills": detected_skills,
     "project_note": project_note,
+    "project_standards": project_standards,
+    "structured_context": {
+        "project": project_fields,
+        "standards": standards_fields,
+        "evidence": evidence,
+        "evidence_paths": [
+            *evidence["repo_rules"],
+            *evidence["repo_docs"],
+            *evidence["durable_memory"],
+            *evidence["standards_pack"],
+        ],
+    },
     "git_status": git_status,
     "recent_commits": recent_commits,
     "next": [
         "Read AGENTS.md constraints first.",
         "Pull durable context from the matching Obsidian project note.",
+        "Read the matching Obsidian standards pack before non-trivial implementation work.",
         "If relevant, use home-level Obsidian skills to search, ingest, or review before coding.",
     ],
 }
@@ -233,6 +339,14 @@ else
   printf 'Create it with: %s/scripts/init-project . --vault %s\n' "$workflow_root" "${vault_path:-/path/to/vault}"
 fi
 
+if [[ -n "$project_standards_abs" && -f "$project_standards_abs" ]]; then
+  show_file "Vault standards note" "$project_standards_abs" 180
+else
+  printf '\n===== Vault standards note =====\n'
+  printf 'No matching standards pack found at: %s\n' "${project_standards_abs:-$project_standards_rel}"
+  printf 'Create it with: %s/scripts/init-project . --vault %s\n' "$workflow_root" "${vault_path:-/path/to/vault}"
+fi
+
 if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   printf '\n===== Recent git activity =====\n'
   git status --short | sed -n '1,40p'
@@ -243,4 +357,5 @@ fi
 printf '\n===== Next =====\n'
 printf '1. Read AGENTS.md constraints first.\n'
 printf '2. Pull durable context from the matching Obsidian project note.\n'
-printf '3. If relevant, use home-level Obsidian skills to search, ingest, or review before coding.\n'
+printf '3. Read the matching Obsidian standards pack before non-trivial implementation work.\n'
+printf '4. If relevant, use home-level Obsidian skills to search, ingest, or review before coding.\n'

@@ -18,6 +18,7 @@ aliases: [Knowledge Base Index]
 - Conversations and debugging captures: `kb/raw/conversation/`
 - Durable wiki: `kb/wiki/`
 - Project notes: `kb/wiki/projects/`
+- Project standards packs: `kb/wiki/projects/*.standards.md`
 - Query notes: `kb/wiki/queries/`
 - Long-form syntheses: `kb/wiki/syntheses/`
 - Human notes: `kb/human/`
@@ -32,12 +33,14 @@ aliases: [Knowledge Base Index]
 4. Search before answering from old knowledge: `scripts/kb-search "query"`.
 5. Important synthesis should leave an active-output prompt.
 6. Each active repo should have one matching note under `kb/wiki/projects/`.
-7. Use `scripts/kb-lint` for maintenance and `scripts/kb-smoke-test` after wiring changes.
-8. Use Obsidian as the shared layer for learning, project work, and permanent agent context.
-9. Keep durable corrections in `kb/human/feedback/**`, not scattered across chat history.
+7. Each active repo should have one matching standards pack under `kb/wiki/projects/*.standards.md`.
+8. Use `scripts/kb-lint` for maintenance and `scripts/kb-smoke-test` after wiring changes.
+9. Use Obsidian as the shared layer for learning, project work, and permanent agent context.
+10. Keep durable corrections in `kb/human/feedback/**`, not scattered across chat history.
 
 ## First steps
 - Create the matching project note with `scripts/init-project /path/to/project --vault <vault>`.
+- Create the matching standards pack with the same `scripts/init-project` run.
 - Capture new material with `scripts/kb-capture`.
 - Capture durable corrections with `scripts/kb-feedback`.
 - Log meaningful ingests or reorganizations with `scripts/kb-log`.

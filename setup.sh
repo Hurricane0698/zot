@@ -1286,7 +1286,7 @@ Next steps:
   3. If you installed AI CLIs, run ${BOLD}claude${NC}, ${BOLD}codex${NC}, or ${BOLD}gemini${NC} once to complete sign-in.
   4. Create your vault:
        ./scripts/init-vault "\$HOME/zot-vault"
-  5. Initialize any repo with AGENTS + project note:
+  5. Initialize any repo with AGENTS + project note + standards pack:
        ./scripts/init-project /path/to/project --vault "\$HOME/zot-vault"
   6. In a project repo, print a working context bundle:
        project-context

@@ -9,6 +9,7 @@ updated: 2026-04-08
 ## Maps
 - [[Local AI workflow]]
 - Projects: `kb/wiki/projects/`
+- Project standards packs: `kb/wiki/projects/*.standards.md`
 - Concepts: `kb/wiki/concepts/`
 - Methods: `kb/wiki/methods/`
 - Queries: `kb/wiki/queries/`

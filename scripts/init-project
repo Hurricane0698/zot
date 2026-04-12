@@ -6,7 +6,7 @@ usage() {
 Usage: scripts/init-project [project-path] [--vault /path/to/vault] [--force]
 
 Adds a sanitized AGENTS.md to a project.
-If a vault is provided (or ZOT_VAULT is set), also creates a matching project note.
+If a vault is provided (or ZOT_VAULT is set), also creates a matching project note and standards pack.
 USAGE
 }
 
@@ -39,21 +39,25 @@ script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd -- "$script_dir/.." && pwd)"
 project_template="$repo_root/templates/project/AGENTS.md"
 vault_template="$repo_root/templates/vault/kb/templates/project-note.md"
+standards_template="$repo_root/templates/vault/kb/templates/project-standards-note.md"
 
 [[ -f "$project_template" ]] || { echo "Missing project AGENTS template: $project_template" >&2; exit 1; }
 [[ -f "$vault_template" ]] || { echo "Missing vault project note template: $vault_template" >&2; exit 1; }
+[[ -f "$standards_template" ]] || { echo "Missing project standards template: $standards_template" >&2; exit 1; }
 
 mkdir -p "$project_path"
 project_abs="$(cd "$project_path" && pwd)"
 project_name="${PROJECT_NAME:-$(basename "$project_abs")}"
 project_slug="$(printf '%s' "$project_name" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//')"
 project_note_rel="kb/wiki/projects/${project_slug}.md"
+project_standards_rel="kb/wiki/projects/${project_slug}.standards.md"
 project_agents="$project_abs/AGENTS.md"
 project_note_abs=""
+project_standards_abs=""
 
 substitute_placeholders() {
   local file="$1"
-  python3 - "$file" "$project_name" "$project_slug" "$project_note_rel" <<'PY'
+  python3 - "$file" "$project_name" "$project_slug" "$project_note_rel" "$project_standards_rel" <<'PY'
 from pathlib import Path
 import sys
 path = Path(sys.argv[1])
@@ -61,6 +65,7 @@ text = path.read_text()
 text = text.replace('__PROJECT_NAME__', sys.argv[2])
 text = text.replace('__PROJECT_SLUG__', sys.argv[3])
 text = text.replace('__PROJECT_NOTE__', sys.argv[4])
+text = text.replace('__PROJECT_STANDARDS_NOTE__', sys.argv[5])
 path.write_text(text)
 PY
 }
@@ -76,6 +81,7 @@ fi
 if [[ -n "$vault_path" ]]; then
   mkdir -p "$vault_path"
   project_note_abs="$vault_path/$project_note_rel"
+  project_standards_abs="$vault_path/$project_standards_rel"
   mkdir -p "$(dirname "$project_note_abs")"
   if [[ -f "$project_note_abs" && "$force" != true ]]; then
     echo "[OK] Vault project note already exists: $project_note_abs"
@@ -94,6 +100,23 @@ PY
     echo "[OK] Created vault project note: $project_note_abs"
   fi
 
+  if [[ -f "$project_standards_abs" && "$force" != true ]]; then
+    echo "[OK] Vault standards note already exists: $project_standards_abs"
+  else
+    cp "$standards_template" "$project_standards_abs"
+    substitute_placeholders "$project_standards_abs"
+    python3 - "$project_standards_abs" "$project_abs" <<'PY'
+from pathlib import Path
+import sys
+path = Path(sys.argv[1])
+repo = sys.argv[2]
+text = path.read_text()
+text = text.replace('__REPO_ROOT__', repo)
+path.write_text(text)
+PY
+    echo "[OK] Created vault standards note: $project_standards_abs"
+  fi
+
   index_file="$vault_path/kb/meta/index.md"
   if [[ -f "$index_file" ]] && ! grep -Fq "[[projects/${project_slug}]]" "$index_file"; then
     printf '\n- [[projects/%s]]\n' "$project_slug" >> "$index_file"
@@ -104,8 +127,9 @@ fi
 echo "[OK] Project scaffold ready: $project_abs"
 if [[ -n "$project_note_abs" ]]; then
   echo "[OK] Project note: $project_note_abs"
+  echo "[OK] Project standards: $project_standards_abs"
 else
-  echo "[INFO] No vault provided. Re-run with --vault /path/to/vault to create the matching project note."
+  echo "[INFO] No vault provided. Re-run with --vault /path/to/vault to create the matching project note and standards pack."
 fi
 
 echo "[INFO] Reusable Obsidian skills are expected at the home level (for example under ~/.codex/skills), not copied into each project."

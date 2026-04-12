@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install shell tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck shfmt
+
+      - name: Install Python tooling
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ruff
+
+      - name: ShellCheck
+        run: |
+          mapfile -t shell_files < <(
+            git ls-files | while read -r file; do
+              if head -n 1 "$file" | grep -Eq '^#!/usr/bin/env (bash|sh)$|^#!/bin/(bash|sh)$'; then
+                printf '%s\n' "$file"
+              fi
+            done
+          )
+          if ((${#shell_files[@]})); then
+            shellcheck "${shell_files[@]}"
+          fi
+
+      - name: shfmt
+        run: |
+          mapfile -t shell_files < <(
+            git ls-files | while read -r file; do
+              if head -n 1 "$file" | grep -Eq '^#!/usr/bin/env (bash|sh)$|^#!/bin/(bash|sh)$'; then
+                printf '%s\n' "$file"
+              fi
+            done
+          )
+          if ((${#shell_files[@]})); then
+            shfmt -d -i 2 -ci "${shell_files[@]}"
+          fi
+
+      - name: Ruff
+        run: ruff check .
+
+      - name: Repo tests
+        run: python -m unittest discover -s tests
+
+      - name: Vault template tests
+        run: python -m unittest discover -s templates/vault/tests

@@ -3,6 +3,11 @@ type: project
 created: 2026-04-07
 updated: 2026-04-07
 status: active
+project_slug: __PROJECT_SLUG__
+repo_root: __REPO_ROOT__
+standards_note: projects/__PROJECT_SLUG__.standards
+owners: []
+milestone: ''
 ---
 
 # __PROJECT_NAME__
@@ -10,6 +15,9 @@ status: active
 ## Repo
 - Root: `__REPO_ROOT__`
 - Slug: `__PROJECT_SLUG__`
+- Standards: [[projects/__PROJECT_SLUG__.standards]]
+
+## Goal
 
 ## Current state
 
@@ -18,9 +26,12 @@ status: active
 ## Context protocol
 - Repo rules come from `AGENTS.md`
 - Durable memory lives here
-- Agents should merge this note with local docs and recent git history before serious work
+- Durable standards live in [[projects/__PROJECT_SLUG__.standards]]
+- Agents should merge this note with local docs, the standards note, and recent git history before serious work
 
 ## Interfaces and contracts
+
+## Dependencies and integration points
 
 ## Open questions
 
@@ -29,3 +40,4 @@ status: active
 ## Sources
 - Local repo docs
 - `AGENTS.md`
+- [[projects/__PROJECT_SLUG__.standards]]
