@@ -94,9 +94,8 @@ if [[ -n "$zsh_path" ]]; then
 fi
 
 case "${1:-}" in
-  shell)
-    ;;
-  ""|-h|--help|help)
+  shell) ;;
+  "" | -h | --help | help)
     usage
     exit 0
     ;;

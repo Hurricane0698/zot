@@ -28,13 +28,25 @@ resolve_zellij_layout() {
 
   case "$(uname -s)" in
     Darwin)
-      [[ -f "$macos_layout" ]] && { printf '%s\n' "$macos_layout"; return; }
-      [[ -f "$linux_layout" ]] && { printf '%s\n' "$linux_layout"; return; }
+      [[ -f "$macos_layout" ]] && {
+        printf '%s\n' "$macos_layout"
+        return
+      }
+      [[ -f "$linux_layout" ]] && {
+        printf '%s\n' "$linux_layout"
+        return
+      }
       printf '%s\n' "$macos_layout"
       ;;
     *)
-      [[ -f "$linux_layout" ]] && { printf '%s\n' "$linux_layout"; return; }
-      [[ -f "$macos_layout" ]] && { printf '%s\n' "$macos_layout"; return; }
+      [[ -f "$linux_layout" ]] && {
+        printf '%s\n' "$linux_layout"
+        return
+      }
+      [[ -f "$macos_layout" ]] && {
+        printf '%s\n' "$macos_layout"
+        return
+      }
       printf '%s\n' "$linux_layout"
       ;;
   esac
@@ -44,7 +56,7 @@ zellij_layout="$(resolve_zellij_layout)"
 
 detect_target() {
   case "$target" in
-    auto|"")
+    auto | "")
       if command -v zellij >/dev/null 2>&1; then
         echo "zellij"
       elif command -v tmux >/dev/null 2>&1; then
@@ -53,7 +65,7 @@ detect_target() {
         echo ""
       fi
       ;;
-    zellij|tmux)
+    zellij | tmux)
       echo "$target"
       ;;
     *)

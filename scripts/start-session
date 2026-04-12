@@ -24,13 +24,16 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --vault)
       shift
-      [[ $# -gt 0 ]] || { echo "Missing value for --vault" >&2; exit 1; }
+      [[ $# -gt 0 ]] || {
+        echo "Missing value for --vault" >&2
+        exit 1
+      }
       vault_path="$1"
       ;;
     --json)
       output_format="json"
       ;;
-    --help|-h)
+    --help | -h)
       usage
       exit 0
       ;;
@@ -82,7 +85,7 @@ show_file() {
 if [[ "$output_format" == "json" ]]; then
   LOCAL_CONTEXT_CANDIDATES="$(printf '%s\n' "${local_context_candidates[@]}")" \
   HOME_SKILL_DIRS="$(printf '%s\n' "${skill_dirs[@]}")" \
-  python3 - "$repo_root" "$workflow_root" "$project_name" "$project_slug" "$vault_path" "$project_note_rel" "$project_note_abs" "$project_standards_rel" "$project_standards_abs" <<'PY'
+    python3 - "$repo_root" "$workflow_root" "$project_name" "$project_slug" "$vault_path" "$project_note_rel" "$project_note_abs" "$project_standards_rel" "$project_standards_abs" <<'PY'
 from __future__ import annotations
 
 import json

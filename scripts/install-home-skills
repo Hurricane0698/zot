@@ -18,13 +18,16 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --home)
       shift
-      [[ $# -gt 0 ]] || { echo "Missing value for --home" >&2; exit 1; }
+      [[ $# -gt 0 ]] || {
+        echo "Missing value for --home" >&2
+        exit 1
+      }
       target_home="$1"
       ;;
     --force)
       force=true
       ;;
-    --help|-h)
+    --help | -h)
       usage
       exit 0
       ;;
@@ -36,13 +39,19 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 
-[[ -n "$target_home" ]] || { echo "HOME is not set; pass --home /path/to/home" >&2; exit 1; }
+[[ -n "$target_home" ]] || {
+  echo "HOME is not set; pass --home /path/to/home" >&2
+  exit 1
+}
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd -- "$script_dir/.." && pwd)"
 template_home="$repo_root/templates/home"
 
-[[ -d "$template_home" ]] || { echo "Missing home skill template dir: $template_home" >&2; exit 1; }
+[[ -d "$template_home" ]] || {
+  echo "Missing home skill template dir: $template_home" >&2
+  exit 1
+}
 mkdir -p "$target_home"
 target_home="$(cd -- "$target_home" && pwd -P)"
 
@@ -62,7 +71,7 @@ copy_missing() {
     done < <(find . -type d -print0)
     while IFS= read -r -d '' file; do
       case "$file" in
-        *.pyc|*.pyo|*/__pycache__/*)
+        *.pyc | *.pyo | */__pycache__/*)
           continue
           ;;
       esac

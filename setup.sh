@@ -60,7 +60,10 @@ MESLO_FONTS=(
 info() { echo -e "${BLUE}[INFO]${NC} $*"; }
 success() { echo -e "${GREEN}[OK]${NC} $*"; }
 warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
-error() { echo -e "${RED}[ERROR]${NC} $*" >&2; exit 1; }
+error() {
+  echo -e "${RED}[ERROR]${NC} $*" >&2
+  exit 1
+}
 
 usage() {
   sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'
@@ -94,7 +97,7 @@ detect_account_shell() {
         shell_path="$(dscl . -read "/Users/$user_name" UserShell 2>/dev/null | awk '{print $2}' || true)"
       fi
       ;;
-    debian|wsl)
+    debian | wsl)
       if [[ -n "$user_name" ]] && has_cmd getent; then
         shell_path="$(getent passwd "$user_name" | cut -d: -f7 || true)"
       elif [[ -n "$user_name" && -r /etc/passwd ]]; then
@@ -185,7 +188,7 @@ detect_os() {
         echo "unsupported"
       fi
       ;;
-    MINGW*|MSYS*|CYGWIN*) echo "windows-native" ;;
+    MINGW* | MSYS* | CYGWIN*) echo "windows-native" ;;
     *) echo "unsupported" ;;
   esac
 }
@@ -202,11 +205,20 @@ OS="$(detect_os)"
 for arg in "$@"; do
   case "$arg" in
     --dry-run) DRY_RUN=true ;;
-    --yes|-y) YES=true ;;
+    --yes | -y) YES=true ;;
     --no-obsidian) INSTALL_OBSIDIAN=false ;;
-    --no-node) INSTALL_NODE=false; NODE_EXPLICITLY_DISABLED=true ;;
-    --no-qmd) INSTALL_QMD=false; QMD_EXPLICITLY_DISABLED=true ;;
-    --help|-h) usage; exit 0 ;;
+    --no-node)
+      INSTALL_NODE=false
+      NODE_EXPLICITLY_DISABLED=true
+      ;;
+    --no-qmd)
+      INSTALL_QMD=false
+      QMD_EXPLICITLY_DISABLED=true
+      ;;
+    --help | -h)
+      usage
+      exit 0
+      ;;
     *) error "Unknown option: $arg" ;;
   esac
 done
@@ -221,7 +233,8 @@ case "$OS" in
   wsl) info "Detected ${BOLD}Windows WSL${NC}" ;;
   windows-native) info "Detected ${BOLD}native Windows shell${NC}" ;;
   *)
-    error "Unsupported OS: $(uname -s). Supported: macOS, Debian/Ubuntu, Windows WSL, or native Windows as a WSL bootstrap path." ;;
+    error "Unsupported OS: $(uname -s). Supported: macOS, Debian/Ubuntu, Windows WSL, or native Windows as a WSL bootstrap path."
+    ;;
 esac
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -514,7 +527,7 @@ ensure_package_manager() {
     macos)
       ensure_homebrew
       ;;
-    debian|wsl)
+    debian | wsl)
       info "Updating apt package index..."
       run_cmd sudo apt-get update
       local base_pkgs=(ca-certificates curl git wget unzip xz-utils build-essential python3 python3-venv fontconfig)
@@ -571,7 +584,7 @@ run_windows_powershell() {
     printf '%b%s\n' "${YELLOW}[DRY-RUN]${NC} " "$ps_cmd -NoProfile -ExecutionPolicy Bypass -Command $script"
   else
     case "$ps_cmd" in
-      powershell*|*.exe)
+      powershell* | *.exe)
         "$ps_cmd" -NoProfile -ExecutionPolicy Bypass -Command "$script"
         ;;
       *)
@@ -598,7 +611,7 @@ run_windows_powershell_file() {
   fi
 
   case "$ps_cmd" in
-    powershell*|*.exe)
+    powershell* | *.exe)
       "$ps_cmd" -NoProfile -ExecutionPolicy Bypass -File "$host_script" "$@"
       ;;
     *)
@@ -672,11 +685,12 @@ install_windows_fonts_wsl() {
   fi
 
   local ps_script
-  ps_script=$(cat <<'PS'
+  ps_script=$(
+    cat <<'PS'
 $ErrorActionPreference = 'Stop'
 $fontFiles = @(
 PS
-)
+  )
 
   local font
   for font in "${MESLO_FONTS[@]}"; do
@@ -689,7 +703,8 @@ PS
     ps_script+=$'\n'
   done
 
-  ps_script+=$(cat <<'PS'
+  ps_script+=$(
+    cat <<'PS'
 )
 
 $localFontDir = Join-Path $env:LOCALAPPDATA 'Microsoft\Windows\Fonts'
@@ -719,7 +734,7 @@ foreach ($font in $fontFiles) {
   }
 }
 PS
-)
+  )
 
   info "Attempting Windows-side install of MesloLGS NF so Windows Terminal can render Starship icons."
   if ! run_windows_powershell "$ps_script"; then
@@ -761,8 +776,9 @@ install_obsidian_appimage_linux() {
     return 0
   fi
 
-  curl -fsSL https://api.github.com/repos/obsidianmd/obsidian-releases/releases/latest > "$tmp_json"
-  download_url="$(python3 - "$tmp_json" <<'PY'
+  curl -fsSL https://api.github.com/repos/obsidianmd/obsidian-releases/releases/latest >"$tmp_json"
+  download_url="$(
+    python3 - "$tmp_json" <<'PY'
 import json, sys
 path = sys.argv[1]
 with open(path, 'r', encoding='utf-8') as f:
@@ -773,14 +789,14 @@ for asset in data.get('assets', []):
         print(asset.get('browser_download_url', ''))
         break
 PY
-)"
+  )"
   [[ -n "$download_url" ]] || error "Could not determine latest Obsidian AppImage URL."
   asset_name="${download_url##*/}"
 
   curl -L "$download_url" -o "$app_dir/$asset_name"
   chmod u+x "$app_dir/$asset_name"
 
-  cat > "$bin_dir/obsidian" <<WRAP
+  cat >"$bin_dir/obsidian" <<WRAP
 #!/usr/bin/env bash
 exec "$app_dir/$asset_name" --no-sandbox "\$@"
 WRAP
@@ -824,7 +840,7 @@ install_fonts() {
   local font_dir
   case "$OS" in
     macos) font_dir="$HOME/Library/Fonts" ;;
-    debian|wsl) font_dir="$HOME/.local/share/fonts" ;;
+    debian | wsl) font_dir="$HOME/.local/share/fonts" ;;
   esac
 
   run_cmd mkdir -p "$font_dir"
@@ -854,7 +870,7 @@ install_zsh_stack() {
       local pkgs=(zsh zsh-autosuggestions zsh-syntax-highlighting zsh-completions)
       for pkg in "${pkgs[@]}"; do brew_formula "$pkg"; done
       ;;
-    debian|wsl)
+    debian | wsl)
       apt_install zsh
       if ! apt_try_install zsh-autosuggestions; then
         if [[ ! -f /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh ]]; then
@@ -901,7 +917,7 @@ install_cli_tools() {
       local mac_tools=(starship bat eza fd ripgrep fzf btop zoxide jq tealdeer git-delta lazygit uv fnm)
       for tool in "${mac_tools[@]}"; do brew_formula "$tool"; done
       ;;
-    debian|wsl)
+    debian | wsl)
       local apt_tools=(bat fd-find ripgrep fzf jq btop)
       for tool in "${apt_tools[@]}"; do apt_install "$tool"; done
 
@@ -951,7 +967,7 @@ install_tmux_tool() {
     macos)
       brew_formula tmux
       ;;
-    debian|wsl)
+    debian | wsl)
       apt_install tmux
       ;;
   esac
@@ -962,7 +978,7 @@ install_zellij_tool() {
     macos)
       brew_formula zellij
       ;;
-    debian|wsl)
+    debian | wsl)
       if apt_try_install zellij; then
         success "zellij installed"
       else
@@ -1027,7 +1043,7 @@ install_node_and_qmd() {
     macos)
       brew_formula fnm
       ;;
-    debian|wsl)
+    debian | wsl)
       if ! has_cmd fnm; then
         info "Installing fnm..."
         run_shell 'curl -fsSL https://fnm.vercel.app/install | bash -s -- --skip-shell'
@@ -1212,7 +1228,7 @@ deploy_configs() {
   local ghostty_dir
   case "$OS" in
     macos) ghostty_dir="$HOME/Library/Application Support/com.mitchellh.ghostty" ;;
-    debian|wsl) ghostty_dir="$HOME/.config/ghostty" ;;
+    debian | wsl) ghostty_dir="$HOME/.config/ghostty" ;;
   esac
   run_cmd mkdir -p "$ghostty_dir"
   backup_file "$ghostty_dir/config"
@@ -1236,7 +1252,7 @@ deploy_configs() {
     local zellij_config_dir
     case "$OS" in
       macos) zellij_config_dir="$HOME/Library/Application Support/org.Zellij-Contributors.Zellij" ;;
-      debian|wsl) zellij_config_dir="$HOME/.config/zellij" ;;
+      debian | wsl) zellij_config_dir="$HOME/.config/zellij" ;;
     esac
     run_cmd mkdir -p "$zellij_config_dir"
     backup_file "$zellij_config_dir/config.kdl"

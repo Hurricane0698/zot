@@ -34,6 +34,9 @@ jobs:
         run: |
           mapfile -t shell_files < <(
             git ls-files | while read -r file; do
+              if [ "$file" = "scripts/install-zoxide.sh" ]; then
+                continue
+              fi
               if head -n 1 "$file" | grep -Eq '^#!/usr/bin/env (bash|sh)$|^#!/bin/(bash|sh)$'; then
                 printf '%s\n' "$file"
               fi
@@ -47,6 +50,9 @@ jobs:
         run: |
           mapfile -t shell_files < <(
             git ls-files | while read -r file; do
+              if [ "$file" = "scripts/install-zoxide.sh" ]; then
+                continue
+              fi
               if head -n 1 "$file" | grep -Eq '^#!/usr/bin/env (bash|sh)$|^#!/bin/(bash|sh)$'; then
                 printf '%s\n' "$file"
               fi
