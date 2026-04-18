@@ -894,6 +894,12 @@ install_zsh_stack() {
   account_shell="$(detect_account_shell)"
   if [[ "$account_shell" != "$zsh_path" ]]; then
     info "Setting zsh as default login shell..."
+    if [[ "$OS" == "macos" ]] && ! $DRY_RUN; then
+      if ! grep -qxF "$zsh_path" /etc/shells 2>/dev/null; then
+        info "Adding $zsh_path to /etc/shells (required by chsh on macOS)..."
+        echo "$zsh_path" | sudo tee -a /etc/shells >/dev/null
+      fi
+    fi
     run_cmd chsh -s "$zsh_path"
     if ! $DRY_RUN; then
       account_shell="$(detect_account_shell)"
